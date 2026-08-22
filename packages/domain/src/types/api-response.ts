@@ -1,4 +1,9 @@
-import type { HiringProcessStatus } from "../constants";
+import type {
+  HiringProcessScope,
+  HiringProcessSortField,
+  HiringProcessStatus,
+  SortDirection,
+} from "../constants";
 
 /**
  * Standard API response structure
@@ -9,6 +14,7 @@ export interface ApiResponse<T> {
   error: { message: string } | null;
   meta?: {
     pagination?: PaginationMeta;
+    counts?: HiringProcessCounts;
   };
 }
 
@@ -38,6 +44,29 @@ export interface HiringProcessFilterParams {
   salaryDeclared?: boolean;
   salaryMin?: number;
   salaryMax?: number;
+  /** default "active" — the repository applies archived_at IS NULL unless "archived" */
+  scope?: HiringProcessScope;
+  /** active scope only: OPEN status + updated_at older than STALE_DAYS */
+  stale?: boolean;
+}
+
+/**
+ * Sort parameters for hiring process lists
+ */
+export interface HiringProcessSortParams {
+  sort?: HiringProcessSortField;
+  dir?: SortDirection;
+}
+
+/**
+ * Global per-user counters, independent of active filters
+ */
+export interface HiringProcessCounts {
+  active: number;
+  archived: number;
+  open: number;
+  closed: number;
+  stale: number;
 }
 
 /**

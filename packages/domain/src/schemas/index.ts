@@ -37,7 +37,9 @@ export {
   paginationQuerySchema,
   hiringProcessFilterSchema,
   hiringProcessQuerySchema,
+  hiringProcessListQuerySchema,
   type PaginationQuery,
   type HiringProcessFilter,
   type HiringProcessQuery,
+  type HiringProcessListQuery,
 } from "./pagination";

@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { HIRING_PROCESS_STATUSES, CURRENCIES, SALARY_RATE_TYPES } from "../constants";
+import {
+  HIRING_PROCESS_STATUSES,
+  CURRENCIES,
+  SALARY_RATE_TYPES,
+  ARCHIVE_REASON_VALUES,
+} from "../constants";
 
 /**
  * Base schema for HiringProcess
@@ -18,6 +23,8 @@ export const hiringProcessBaseSchema = z.object({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   deletedAt: z.coerce.date().nullable().optional(),
+  archivedAt: z.coerce.date().nullable().optional(), // null = active; orthogonal to status
+  archiveReason: z.enum(ARCHIVE_REASON_VALUES).nullable().optional(), // set iff archivedAt is set
 });
 
 /**

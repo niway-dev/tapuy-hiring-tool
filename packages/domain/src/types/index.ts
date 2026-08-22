@@ -16,4 +16,6 @@ export type {
   PaginationParams,
   PaginationResult,
   HiringProcessFilterParams,
+  HiringProcessSortParams,
+  HiringProcessCounts,
 } from "./api-response";
