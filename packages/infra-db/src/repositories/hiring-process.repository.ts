@@ -18,6 +18,7 @@ import type {
   IHiringProcessRepository,
   PaginatedResult,
 } from "@interviews-tool/domain/repositories";
+import type { ArchiveReason } from "@interviews-tool/domain/constants";
 import type { HiringProcessBase } from "@interviews-tool/domain/schemas";
 import type { PaginationParams, HiringProcessFilterParams } from "@interviews-tool/domain/types";
 import { HiringProcessMapper } from "../mappers/hiring-process.mapper";
@@ -140,7 +141,13 @@ export class HiringProcessRepository implements IHiringProcessRepository {
     const [updated] = await this.db
       .update(hiringProcessTable)
       .set(updateData)
-      .where(and(eq(hiringProcessTable.id, id), eq(hiringProcessTable.userId, userId)))
+      .where(
+        and(
+          eq(hiringProcessTable.id, id),
+          eq(hiringProcessTable.userId, userId),
+          isNull(hiringProcessTable.deletedAt),
+        ),
+      )
       .returning();
 
     if (!updated) {
@@ -148,6 +155,61 @@ export class HiringProcessRepository implements IHiringProcessRepository {
     }
 
     return HiringProcessMapper.toDomain(updated);
+  }
+
+  /**
+   * Archive: sets archivedAt + archiveReason and NOTHING else.
+   * updatedAt is pinned to itself to defeat the schema-level $onUpdate (invariant I2).
+   * Returns null if not found, not owned, soft-deleted, or already archived.
+   */
+  async archive(
+    id: string,
+    userId: string,
+    reason: ArchiveReason,
+  ): Promise<HiringProcessBase | null> {
+    const [updated] = await this.db
+      .update(hiringProcessTable)
+      .set({
+        archivedAt: new Date(),
+        archiveReason: reason,
+        updatedAt: sql`${hiringProcessTable.updatedAt}`,
+      })
+      .where(
+        and(
+          eq(hiringProcessTable.id, id),
+          eq(hiringProcessTable.userId, userId),
+          isNull(hiringProcessTable.deletedAt),
+          isNull(hiringProcessTable.archivedAt),
+        ),
+      )
+      .returning();
+
+    return updated ? HiringProcessMapper.toDomain(updated) : null;
+  }
+
+  /**
+   * Restore: clears archivedAt + archiveReason, preserves updatedAt (invariant I2)
+   * so the process returns to its previous position in updatedAt ordering.
+   */
+  async restore(id: string, userId: string): Promise<HiringProcessBase | null> {
+    const [updated] = await this.db
+      .update(hiringProcessTable)
+      .set({
+        archivedAt: null,
+        archiveReason: null,
+        updatedAt: sql`${hiringProcessTable.updatedAt}`,
+      })
+      .where(
+        and(
+          eq(hiringProcessTable.id, id),
+          eq(hiringProcessTable.userId, userId),
+          isNull(hiringProcessTable.deletedAt),
+          isNotNull(hiringProcessTable.archivedAt),
+        ),
+      )
+      .returning();
+
+    return updated ? HiringProcessMapper.toDomain(updated) : null;
   }
 
   /**
