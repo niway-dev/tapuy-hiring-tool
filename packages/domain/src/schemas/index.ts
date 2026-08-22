@@ -5,12 +5,14 @@ export {
   updateHiringProcessSchema,
   partialUpdateHiringProcessSchema,
   changeHiringProcessStatusSchema,
+  archiveHiringProcessSchema,
   filterHiringProcessSchema,
   type HiringProcessBase,
   type CreateHiringProcess,
   type UpdateHiringProcess,
   type PartialUpdateHiringProcess,
   type ChangeHiringProcessStatus,
+  type ArchiveHiringProcess,
   type FilterHiringProcess,
 } from "./hiring-process";
 

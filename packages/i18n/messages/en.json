@@ -281,7 +281,27 @@
     "boardLegend": "Drag a card to move it, or use ⋯ to pick a status. Nothing is deleted by moving.",
     "movedTo": "Moved to {status}",
     "undo": "Undo",
-    "moveError": "Couldn't move it. Check your connection and try again."
+    "moveError": "Couldn't move it. Check your connection and try again.",
+    "scopeActive": "Active",
+    "scopeArchived": "Archived",
+    "staleStrip": "{count, plural, one {# open process has} other {# open processes have}} had no update in over {days} days.",
+    "showThem": "Show them",
+    "notNow": "Not now",
+    "archiveTitle": "Archive {company}?",
+    "archiveBody": "It keeps its status and every note. You'll find it under Archived.",
+    "archiveWhy": "Why",
+    "archiveAction": "Archive",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archivedToast": "Archived {company}",
+    "restoredToast": "Restored {company}",
+    "archiveError": "Couldn't archive it. Check your connection and try again.",
+    "restoreError": "Couldn't restore it. Check your connection and try again.",
+    "columnsStatusWhenArchived": "Status when archived",
+    "columnsArchived": "Archived",
+    "nothingArchivedTitle": "Nothing archived",
+    "nothingArchivedBody": "Processes you stop following will wait here — status and notes intact.",
+    "archiveMenuItem": "Archive…"
   },
   "capture": {
     "startLiveNote": "Start live note",
@@ -334,5 +354,11 @@
     "inCallTitle": "In a call right now?",
     "inCallBody": "Full-screen notes with a running clock. Timestamps with /, your questions on the side, autosaved as you type.",
     "logItAfter": "Log it after"
+  },
+  "archiveReasons": {
+    "noReply": "No reply",
+    "theyPassed": "They passed",
+    "iWithdrew": "I withdrew",
+    "roleClosed": "Role closed"
   }
 }

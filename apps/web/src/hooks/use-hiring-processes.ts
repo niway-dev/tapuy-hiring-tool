@@ -36,6 +36,8 @@ export function hiringProcessesQueryOptions(
         data: {
           page: params.page,
           limit: params.limit,
+          sort: params.sort,
+          dir: params.dir,
           ...params.filters,
         },
       }),

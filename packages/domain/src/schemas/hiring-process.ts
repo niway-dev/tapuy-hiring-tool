@@ -67,6 +67,14 @@ export const changeHiringProcessStatusSchema = z.object({
 });
 
 /**
+ * Archiving takes a reason. It is a record, not decoration: it's what
+ * later answers "of 40 processes, how many died without a reply".
+ */
+export const archiveHiringProcessSchema = z.object({
+  reason: z.enum(ARCHIVE_REASON_VALUES),
+});
+
+/**
  * Query/Filter schema
  * For filtering hiring processes
  */
@@ -81,4 +89,5 @@ export type CreateHiringProcess = z.infer<typeof createHiringProcessSchema>;
 export type UpdateHiringProcess = z.infer<typeof updateHiringProcessSchema>;
 export type PartialUpdateHiringProcess = z.infer<typeof partialUpdateHiringProcessSchema>;
 export type ChangeHiringProcessStatus = z.infer<typeof changeHiringProcessStatusSchema>;
+export type ArchiveHiringProcess = z.infer<typeof archiveHiringProcessSchema>;
 export type FilterHiringProcess = z.infer<typeof filterHiringProcessSchema>;

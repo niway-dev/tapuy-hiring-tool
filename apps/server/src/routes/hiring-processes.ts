@@ -7,6 +7,7 @@ import {
   createHiringProcessSchema,
   updateHiringProcessSchema,
   changeHiringProcessStatusSchema,
+  archiveHiringProcessSchema,
   hiringProcessQuerySchema,
 } from "@interviews-tool/domain/schemas";
 import {
@@ -15,9 +16,13 @@ import {
   listHiringProcesses,
   updateHiringProcess,
   changeHiringProcessStatus,
+  archiveHiringProcess,
+  restoreHiringProcess,
+  AlreadyArchivedError,
+  NotArchivedError,
   deleteHiringProcess,
 } from "@interviews-tool/application/hiring";
-import { NotFoundError } from "../utils/errors";
+import { ConflictError, NotFoundError } from "../utils/errors";
 import { successBody, createdBody, successWithPaginationBody } from "../utils/response-helpers";
 import { errorHandlerPlugin } from "../utils/error-handler-plugin";
 import { env } from "../env";
@@ -169,6 +174,60 @@ export const hiringProcessRoutes = new Elysia({ prefix: "/hiring-processes" })
         id: t.String(),
       }),
       body: changeHiringProcessStatusSchema,
+      isAuth: true,
+    },
+  )
+  // Archive: off the radar, status and notes intact
+  .post(
+    "/:id/archive",
+    async ({ params, body, hiringProcessRepo, user }) => {
+      const result = await archiveHiringProcess({
+        repo: hiringProcessRepo,
+        id: params.id,
+        userId: user.id,
+        reason: body.reason,
+      });
+
+      if (result.error) {
+        if (result.error instanceof AlreadyArchivedError) {
+          throw new ConflictError(result.error.message);
+        }
+        throw new NotFoundError("Hiring process");
+      }
+
+      return successBody(result.data);
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: archiveHiringProcessSchema,
+      isAuth: true,
+    },
+  )
+  // Restore: back on the radar, exactly where it was
+  .post(
+    "/:id/restore",
+    async ({ params, hiringProcessRepo, user }) => {
+      const result = await restoreHiringProcess({
+        repo: hiringProcessRepo,
+        id: params.id,
+        userId: user.id,
+      });
+
+      if (result.error) {
+        if (result.error instanceof NotArchivedError) {
+          throw new ConflictError(result.error.message);
+        }
+        throw new NotFoundError("Hiring process");
+      }
+
+      return successBody(result.data);
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
       isAuth: true,
     },
   )

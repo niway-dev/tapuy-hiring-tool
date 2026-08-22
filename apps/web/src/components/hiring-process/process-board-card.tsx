@@ -38,6 +38,7 @@ interface ProcessBoardCardProps {
   onDragStart: () => void;
   onDragEnd: () => void;
   onMove: (status: HiringProcessStatus) => void;
+  onArchive: () => void;
 }
 
 export function ProcessBoardCard({
@@ -46,6 +47,7 @@ export function ProcessBoardCard({
   onDragStart,
   onDragEnd,
   onMove,
+  onArchive,
 }: ProcessBoardCardProps) {
   const t = useTranslations("dashboard");
   const tCapture = useTranslations("capture");
@@ -113,6 +115,8 @@ export function ProcessBoardCard({
                   </DropdownMenuItem>
                 ),
               )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={onArchive}>{t("archiveMenuItem")}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>

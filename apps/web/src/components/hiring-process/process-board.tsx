@@ -9,9 +9,10 @@ import { ProcessBoardCard } from "./process-board-card";
 interface ProcessBoardProps {
   columns: BoardColumnData[];
   onMove: (id: string, from: HiringProcessStatus, to: HiringProcessStatus) => void;
+  onArchive: (card: BoardColumnData["cards"][number]) => void;
 }
 
-export function ProcessBoard({ columns, onMove }: ProcessBoardProps) {
+export function ProcessBoard({ columns, onMove, onArchive }: ProcessBoardProps) {
   const t = useTranslations("dashboard");
   const [dragId, setDragId] = useState<string | null>(null);
 
@@ -38,6 +39,7 @@ export function ProcessBoard({ columns, onMove }: ProcessBoardProps) {
                 setDragId(null);
               }}
               onMove={(id, to) => onMove(id, column.status, to)}
+              onArchive={onArchive}
             />
           ))}
         </div>
@@ -57,6 +59,7 @@ interface BoardColumnProps {
   onDragEnd: () => void;
   onDrop: (id: string) => void;
   onMove: (id: string, to: HiringProcessStatus) => void;
+  onArchive: (card: BoardColumnData["cards"][number]) => void;
 }
 
 function BoardColumn({
@@ -67,6 +70,7 @@ function BoardColumn({
   onDragEnd,
   onDrop,
   onMove,
+  onArchive,
 }: BoardColumnProps) {
   const t = useTranslations("dashboard");
   const statusLabel = useStatusLabel();
@@ -110,6 +114,7 @@ function BoardColumn({
             onDragStart={() => onDragStart(card.id)}
             onDragEnd={onDragEnd}
             onMove={(to) => onMove(card.id, to)}
+            onArchive={() => onArchive(card)}
           />
         ))}
 

@@ -1,4 +1,9 @@
-import type { HiringProcessStatus } from "@interviews-tool/domain/constants";
+import type {
+  HiringProcessScope,
+  HiringProcessSortField,
+  HiringProcessStatus,
+  SortDirection,
+} from "@interviews-tool/domain/constants";
 
 export interface PaginationParams {
   page: number;
@@ -10,10 +15,16 @@ export interface FilterParams {
   salaryDeclared?: boolean;
   salaryMin?: number;
   salaryMax?: number;
+  /** "active" (default) hides archived processes; "archived" shows only them */
+  scope?: HiringProcessScope;
+  /** active scope only: open statuses with no update past the stale threshold */
+  stale?: boolean;
 }
 
 export interface HiringProcessListParams extends PaginationParams {
   filters?: FilterParams;
+  sort?: HiringProcessSortField;
+  dir?: SortDirection;
 }
 
 export type BoardParams = Pick<FilterParams, "salaryDeclared" | "salaryMin" | "salaryMax">;
