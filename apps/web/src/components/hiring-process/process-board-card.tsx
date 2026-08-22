@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -100,21 +101,24 @@ export function ProcessBoardCard({
               <MoreHorizontal className="size-3.5" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-[196px]">
-              <DropdownMenuLabel className="text-[11px] font-medium tracking-[0.04em] text-text-muted uppercase">
-                {t("moveTo")}
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {HIRING_PROCESS_STATUS_ORDER.filter((status) => status !== card.status).map(
-                (status) => (
-                  <DropdownMenuItem key={status} onClick={() => onMove(status)}>
-                    <span
-                      aria-hidden
-                      className={`size-[7px] shrink-0 rounded-[2px] ${STATUS_SQUARE[status]}`}
-                    />
-                    {statusLabel(status)}
-                  </DropdownMenuItem>
-                ),
-              )}
+              {/* GroupLabel is a Base UI group part: it must live inside a Group */}
+              <DropdownMenuGroup>
+                <DropdownMenuLabel className="text-[11px] font-medium tracking-[0.04em] text-text-muted uppercase">
+                  {t("moveTo")}
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {HIRING_PROCESS_STATUS_ORDER.filter((status) => status !== card.status).map(
+                  (status) => (
+                    <DropdownMenuItem key={status} onClick={() => onMove(status)}>
+                      <span
+                        aria-hidden
+                        className={`size-[7px] shrink-0 rounded-[2px] ${STATUS_SQUARE[status]}`}
+                      />
+                      {statusLabel(status)}
+                    </DropdownMenuItem>
+                  ),
+                )}
+              </DropdownMenuGroup>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={onArchive}>{t("archiveMenuItem")}</DropdownMenuItem>
             </DropdownMenuContent>
