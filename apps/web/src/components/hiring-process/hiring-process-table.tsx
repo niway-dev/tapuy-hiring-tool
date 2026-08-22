@@ -121,11 +121,7 @@ export function InterviewTable({
           const interview = info.row.original;
           return (
             <div className="mono text-right text-[13px] text-text">
-              {formatSalary(
-                info.getValue(),
-                interview.currency,
-                interview.salaryRateType as SalaryRateType | undefined,
-              )}
+              {formatSalary(info.getValue(), interview.currency, interview.salaryRateType)}
             </div>
           );
         },
@@ -205,8 +201,8 @@ export function InterviewTable({
         enableSorting: false,
       }),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- formatSalary/formatDate derive from format+tForm
-    [navigate, t, tForm, statusLabel, format],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formatSalary/formatDate derive from format, which is in the deps
+    [navigate, t, statusLabel, format],
   );
 
   const table = useReactTable({
