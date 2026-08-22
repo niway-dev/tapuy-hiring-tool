@@ -25,10 +25,9 @@ import {
 } from "@interviews-tool/web-ui";
 import { useTranslations, useFormatter } from "@interviews-tool/i18n";
 import { useStatusLabel } from "@/lib/i18n-labels";
+import { useSalaryFormatter } from "@/lib/format";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import type { HiringProcess } from "@/hooks/use-hiring-processes";
-import { SALARY_RATE_TYPES } from "@interviews-tool/domain/constants";
-import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
 import {
   Pencil,
   Trash2,
@@ -64,9 +63,9 @@ export function InterviewTable({
 }: InterviewTableProps) {
   const navigate = useNavigate();
   const t = useTranslations("dashboard");
-  const tForm = useTranslations("processForm");
   const format = useFormatter();
   const statusLabel = useStatusLabel();
+  const formatSalary = useSalaryFormatter();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([{ id: "updatedAt", desc: true }]);
 
@@ -75,27 +74,6 @@ export function InterviewTable({
 
   const formatDate = (date: Date): string =>
     format.dateTime(new Date(date), { month: "short", day: "numeric", year: "numeric" });
-
-  /* "$5,200 / mo" — locale-aware amount plus the localized short rate
-     (the perMonthShort/perHourShort messages already include the slash).
-     Zero stays "–": the app treats 0 as undeclared. */
-  const formatSalary = (
-    salary: number | null,
-    currency: Currency = "USD",
-    salaryRateType?: SalaryRateType,
-  ): string => {
-    if (!salary) return "–";
-    const amount = format.number(salary, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    if (!salaryRateType) return amount;
-    const short =
-      salaryRateType === SALARY_RATE_TYPES.HOURLY ? tForm("perHourShort") : tForm("perMonthShort");
-    return `${amount} ${short}`;
-  };
 
   const columns = useMemo(
     () => [

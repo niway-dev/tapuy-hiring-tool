@@ -271,7 +271,17 @@
     "loadError": "No pudimos cargar tus procesos. Revisa tu conexión e intenta de nuevo.",
     "retry": "Reintentar",
     "liveTip": "¿En una llamada? Abre un proceso y presiona <kbd>L</kbd> para notas en vivo.",
-    "liveNote": "Nota en vivo"
+    "liveNote": "Nota en vivo",
+    "viewTable": "Tabla",
+    "viewBoard": "Tablero",
+    "today": "hoy",
+    "moveTo": "Mover a",
+    "nothingHere": "Nada por aquí",
+    "dropHere": "Suelta aquí",
+    "boardLegend": "Arrastra una tarjeta para moverla, o usa ⋯ para elegir un estado. Mover no borra nada.",
+    "movedTo": "Movido a {status}",
+    "undo": "Deshacer",
+    "moveError": "No se pudo mover. Revisa tu conexión e inténtalo de nuevo."
   },
   "capture": {
     "startLiveNote": "Iniciar nota en vivo",

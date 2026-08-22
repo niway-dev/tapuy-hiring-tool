@@ -32,8 +32,15 @@ import {
   hiringProcessesQueryOptions,
   type FilterParams,
 } from "@/hooks/use-hiring-processes";
+import { ProcessBoard } from "@/components/hiring-process/process-board";
+import { useHiringBoard, useMoveHiringProcessStatus } from "@/hooks/use-hiring-board";
 import { ChevronDown, X } from "lucide-react";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { toast } from "sonner";
+
+type DashboardView = "table" | "board";
+
+const VIEW_STORAGE_KEY = "tapuy:dashboard-view";
 
 const ACTIVE_STATUSES = getActiveStatuses();
 const TERMINAL_STATUSES = getTerminalStatuses();
@@ -65,6 +72,46 @@ function TableSkeleton() {
   );
 }
 
+/* Board skeleton — four column shells, enough to hold the layout still */
+function BoardSkeleton() {
+  return (
+    <div className="flex items-start gap-3.5 overflow-hidden">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="w-[272px] shrink-0 rounded-xl border border-border bg-surface-2 p-3">
+          <Skeleton className="h-5 w-24 rounded-[5px]" />
+          <div className="mt-3 grid gap-2">
+            <Skeleton className="h-[86px] rounded-[10px]" />
+            <Skeleton className="h-[86px] rounded-[10px]" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ViewSegmentButton({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={`rounded px-3 py-1 text-sm transition-colors ${
+        active ? "bg-surface-2 text-text" : "text-text-muted hover:text-text-secondary"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function HiringProcessesComponent() {
   const t = useTranslations("dashboard");
   const statusLabel = useStatusLabel();
@@ -75,6 +122,23 @@ function HiringProcessesComponent() {
   });
 
   const [filters, setFilters] = useState<FilterParams>({});
+
+  /* Read after mount: the server can't know the stored preference, and
+     seeding it during render would desync hydration. */
+  const [view, setView] = useState<DashboardView>("table");
+  useEffect(() => {
+    const stored = localStorage.getItem(VIEW_STORAGE_KEY);
+    if (stored === "board" || stored === "table") setView(stored);
+  }, []);
+
+  const changeView = useCallback((next: DashboardView) => {
+    setView(next);
+    try {
+      localStorage.setItem(VIEW_STORAGE_KEY, next);
+    } catch {
+      /* private mode — the preference just won't persist */
+    }
+  }, []);
 
   const hasActiveFilters =
     (filters.statuses && filters.statuses.length > 0) ||
@@ -117,6 +181,42 @@ function HiringProcessesComponent() {
   const activeCount = activeData?.meta?.pagination?.total;
   const closedCount = closedData?.meta?.pagination?.total;
 
+  /* Board reads every active process at once — no pagination, the columns are the shape */
+  const boardFilters = {
+    salaryDeclared: filters.salaryDeclared,
+    salaryMin: filters.salaryMin,
+    salaryMax: filters.salaryMax,
+  };
+  const {
+    data: boardData,
+    isLoading: isBoardLoading,
+    error: boardError,
+  } = useHiringBoard(boardFilters, { enabled: view === "board" });
+
+  const moveStatus = useMoveHiringProcessStatus();
+
+  const handleMove = useCallback(
+    (id: string, from: HiringProcessStatus, to: HiringProcessStatus) => {
+      moveStatus.mutate(
+        { id, status: to },
+        {
+          onSuccess: () => {
+            /* 5s, not 3: an undo that expires before it's read doesn't exist */
+            toast.success(t("movedTo", { status: statusLabel(to) }), {
+              duration: 5000,
+              action: {
+                label: t("undo"),
+                onClick: () => moveStatus.mutate({ id, status: from }),
+              },
+            });
+          },
+          onError: () => toast.error(t("moveError")),
+        },
+      );
+    },
+    [moveStatus, statusLabel, t],
+  );
+
   const deleteHiringProcess = useDeleteHiringProcess();
 
   const handleDelete = async (id: string) => {
@@ -154,7 +254,9 @@ function HiringProcessesComponent() {
   }
 
   return (
-    <div className="container mx-auto max-w-6xl px-4 py-10">
+    <div
+      className={`container mx-auto px-4 py-10 ${view === "board" ? "max-w-[1560px]" : "max-w-6xl"}`}
+    >
       {/* Page header */}
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
@@ -189,6 +291,8 @@ function HiringProcessesComponent() {
 
       {/* Filters — compact, no accent */}
       <div className="mb-5 flex flex-wrap items-center gap-3">
+        {/* On the board the columns already are the status filter */}
+        {view === "table" && (
         <DropdownMenu>
           <DropdownMenuTrigger className="inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-transparent px-3 text-sm text-text transition-colors hover:border-border-strong">
             {selectedStatuses > 0
@@ -212,6 +316,7 @@ function HiringProcessesComponent() {
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
+        )}
 
         <Select
           value={
@@ -279,10 +384,30 @@ function HiringProcessesComponent() {
             {t("clearFilters")}
           </Button>
         )}
+
+        {/* View segment, pushed to the far right */}
+        <div className="ml-auto inline-flex rounded-md border border-border p-0.5">
+          <ViewSegmentButton active={view === "table"} onClick={() => changeView("table")}>
+            {t("viewTable")}
+          </ViewSegmentButton>
+          <ViewSegmentButton active={view === "board"} onClick={() => changeView("board")}>
+            {t("viewBoard")}
+          </ViewSegmentButton>
+        </div>
       </div>
 
       {/* Content */}
-      {isLoading ? (
+      {view === "board" ? (
+        isBoardLoading ? (
+          <BoardSkeleton />
+        ) : boardError || !boardData?.data ? (
+          <div className="py-20 text-center">
+            <p className="text-sm text-danger">{t("loadError")}</p>
+          </div>
+        ) : (
+          <ProcessBoard columns={boardData.data.columns} onMove={handleMove} />
+        )
+      ) : isLoading ? (
         <TableSkeleton />
       ) : error ? (
         <div className="py-20 text-center">

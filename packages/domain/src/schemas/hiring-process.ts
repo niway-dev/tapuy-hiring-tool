@@ -58,6 +58,15 @@ export const updateHiringProcessSchema = createHiringProcessSchema;
 export const partialUpdateHiringProcessSchema = updateHiringProcessSchema.partial();
 
 /**
+ * Status-only change (board move).
+ * Deliberately separate from the full update: moving a card must never
+ * touch companyName/jobTitle/salary, which a full-body PUT would rewrite.
+ */
+export const changeHiringProcessStatusSchema = z.object({
+  status: z.enum(HIRING_PROCESS_STATUSES),
+});
+
+/**
  * Query/Filter schema
  * For filtering hiring processes
  */
@@ -71,4 +80,5 @@ export type HiringProcessBase = z.infer<typeof hiringProcessBaseSchema>;
 export type CreateHiringProcess = z.infer<typeof createHiringProcessSchema>;
 export type UpdateHiringProcess = z.infer<typeof updateHiringProcessSchema>;
 export type PartialUpdateHiringProcess = z.infer<typeof partialUpdateHiringProcessSchema>;
+export type ChangeHiringProcessStatus = z.infer<typeof changeHiringProcessStatusSchema>;
 export type FilterHiringProcess = z.infer<typeof filterHiringProcessSchema>;

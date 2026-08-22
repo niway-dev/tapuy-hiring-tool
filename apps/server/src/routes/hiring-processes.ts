@@ -6,6 +6,7 @@ import { PrismaHiringProcessRepository } from "@interviews-tool/infra-prisma-db/
 import {
   createHiringProcessSchema,
   updateHiringProcessSchema,
+  changeHiringProcessStatusSchema,
   hiringProcessQuerySchema,
 } from "@interviews-tool/domain/schemas";
 import {
@@ -13,6 +14,7 @@ import {
   getHiringProcess,
   listHiringProcesses,
   updateHiringProcess,
+  changeHiringProcessStatus,
   deleteHiringProcess,
 } from "@interviews-tool/application/hiring";
 import { NotFoundError } from "../utils/errors";
@@ -141,6 +143,32 @@ export const hiringProcessRoutes = new Elysia({ prefix: "/hiring-processes" })
         id: t.String(),
       }),
       body: updateHiringProcessSchema,
+      isAuth: true,
+    },
+  )
+  // Move a process to another status (board drag / card menu).
+  // Status-only: never rewrites the other fields the way PUT /:id does.
+  .patch(
+    "/:id/status",
+    async ({ params, body, hiringProcessRepo, user }) => {
+      const result = await changeHiringProcessStatus({
+        repo: hiringProcessRepo,
+        id: params.id,
+        userId: user.id,
+        status: body.status,
+      });
+
+      if (result.error) {
+        throw new NotFoundError("Hiring process");
+      }
+
+      return successBody(result.data);
+    },
+    {
+      params: t.Object({
+        id: t.String(),
+      }),
+      body: changeHiringProcessStatusSchema,
       isAuth: true,
     },
   )
