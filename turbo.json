@@ -20,6 +20,9 @@
     "lint": {
       "dependsOn": ["transit"]
     },
+    "test": {
+      "cache": false
+    },
     "check-types": {
       "dependsOn": ["transit"]
     },
