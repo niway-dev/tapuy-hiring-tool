@@ -1,12 +1,14 @@
 import {
   eq,
   and,
+  asc,
   desc,
   sql,
   isNull,
   isNotNull,
   inArray,
   gte,
+  lt,
   lte,
   or,
   type SQL,
@@ -15,12 +17,23 @@ import { hiringProcessTable } from "../schema";
 import type { NeonHttpDatabase } from "drizzle-orm/neon-http";
 import type * as schema from "../schema";
 import type {
+  IHiringProcessArchiveRepository,
   IHiringProcessRepository,
   PaginatedResult,
 } from "@interviews-tool/domain/repositories";
-import type { ArchiveReason } from "@interviews-tool/domain/constants";
+import type { ArchiveReason, HiringProcessSortField } from "@interviews-tool/domain/constants";
+import {
+  HIRING_PROCESS_STATUS_ORDER,
+  OPEN_STATUSES,
+  staleCutoff,
+} from "@interviews-tool/domain/constants";
 import type { HiringProcessBase } from "@interviews-tool/domain/schemas";
-import type { PaginationParams, HiringProcessFilterParams } from "@interviews-tool/domain/types";
+import type {
+  PaginationParams,
+  HiringProcessFilterParams,
+  HiringProcessSortParams,
+  HiringProcessCounts,
+} from "@interviews-tool/domain/types";
 import { HiringProcessMapper } from "../mappers/hiring-process.mapper";
 
 /**
@@ -29,7 +42,9 @@ import { HiringProcessMapper } from "../mappers/hiring-process.mapper";
  * This class provides concrete data access operations using Drizzle ORM.
  * It implements the IHiringProcessRepository interface from the domain layer.
  */
-export class HiringProcessRepository implements IHiringProcessRepository {
+export class HiringProcessRepository
+  implements IHiringProcessRepository, IHiringProcessArchiveRepository
+{
   constructor(private readonly db: NeonHttpDatabase<typeof schema>) {}
 
   /**
@@ -48,14 +63,12 @@ export class HiringProcessRepository implements IHiringProcessRepository {
   }
 
   /**
-   * Build filter conditions from filter params
+   * Build salary-only conditions (shared by the list and the board)
    */
-  private buildFilterConditions(filters?: HiringProcessFilterParams): SQL[] {
+  private buildSalaryConditions(
+    filters?: Pick<HiringProcessFilterParams, "salaryDeclared" | "salaryMin" | "salaryMax">,
+  ): SQL[] {
     const conditions: SQL[] = [];
-
-    if (filters?.statuses && filters.statuses.length > 0) {
-      conditions.push(inArray(hiringProcessTable.status, filters.statuses));
-    }
 
     if (filters?.salaryDeclared === true) {
       conditions.push(isNotNull(hiringProcessTable.salary));
@@ -77,12 +90,64 @@ export class HiringProcessRepository implements IHiringProcessRepository {
   }
 
   /**
+   * Build filter conditions from filter params
+   */
+  private buildFilterConditions(filters?: HiringProcessFilterParams): SQL[] {
+    const conditions: SQL[] = [];
+
+    // Scope is not opt-in: active (the default) must always exclude archived (I4)
+    if (filters?.scope === "archived") {
+      conditions.push(isNotNull(hiringProcessTable.archivedAt));
+    } else {
+      conditions.push(isNull(hiringProcessTable.archivedAt));
+
+      if (filters?.stale) {
+        conditions.push(inArray(hiringProcessTable.status, [...OPEN_STATUSES]));
+        conditions.push(lt(hiringProcessTable.updatedAt, staleCutoff(new Date())));
+      }
+    }
+
+    if (filters?.statuses && filters.statuses.length > 0) {
+      conditions.push(inArray(hiringProcessTable.status, filters.statuses));
+    }
+
+    conditions.push(...this.buildSalaryConditions(filters));
+
+    return conditions;
+  }
+
+  /**
+   * Resolve the ORDER BY expression for a sort field.
+   * Status sorts by pipeline position, never alphabetically (I5).
+   */
+  private sortExpression(field: HiringProcessSortField): SQL | typeof hiringProcessTable.updatedAt {
+    switch (field) {
+      case "companyName":
+        return sql`${hiringProcessTable.companyName}`;
+      case "jobTitle":
+        return sql`${hiringProcessTable.jobTitle}`;
+      case "salary":
+        return sql`${hiringProcessTable.salary}`;
+      case "archivedAt":
+        return sql`${hiringProcessTable.archivedAt}`;
+      case "status":
+        return sql`array_position(ARRAY[${sql.join(
+          HIRING_PROCESS_STATUS_ORDER.map((s) => sql`${s}`),
+          sql`, `,
+        )}]::text[], ${hiringProcessTable.status}::text)`;
+      case "updatedAt":
+        return hiringProcessTable.updatedAt;
+    }
+  }
+
+  /**
    * Find paginated hiring processes for a user
    */
   async findPaginated(
     userId: string,
     params: PaginationParams,
     filters?: HiringProcessFilterParams,
+    sort?: HiringProcessSortParams,
   ): Promise<PaginatedResult<HiringProcessBase>> {
     const safeLimit = Math.min(100, Math.max(1, params.limit ?? 5));
     const safePage = Math.max(1, params.page ?? 1);
@@ -95,12 +160,18 @@ export class HiringProcessRepository implements IHiringProcessRepository {
     const filterConditions = this.buildFilterConditions(filters);
     const whereClause = and(...baseConditions, ...filterConditions);
 
+    const sortField: HiringProcessSortField =
+      sort?.sort ?? (filters?.scope === "archived" ? "archivedAt" : "updatedAt");
+    const sortDir =
+      sort?.dir ?? (sortField === "updatedAt" || sortField === "archivedAt" ? "desc" : "asc");
+    const orderExpr = this.sortExpression(sortField);
+
     const [processes, countResult] = await Promise.all([
       this.db
         .select()
         .from(hiringProcessTable)
         .where(whereClause)
-        .orderBy(desc(hiringProcessTable.updatedAt))
+        .orderBy(sortDir === "asc" ? asc(orderExpr) : desc(orderExpr))
         .limit(safeLimit)
         .offset(offset),
       this.db.select({ count: sql<number>`count(*)` }).from(hiringProcessTable).where(whereClause),
@@ -155,6 +226,61 @@ export class HiringProcessRepository implements IHiringProcessRepository {
     }
 
     return HiringProcessMapper.toDomain(updated);
+  }
+
+  /**
+   * Global per-user counters in ONE aggregated query (COUNT FILTER).
+   * Independent of the active filters — these feed the scope segments.
+   */
+  async counts(userId: string): Promise<HiringProcessCounts> {
+    const openList = sql.join(
+      OPEN_STATUSES.map((s) => sql`${s}`),
+      sql`, `,
+    );
+    const cutoff = staleCutoff(new Date());
+
+    const [row] = await this.db
+      .select({
+        active: sql<number>`count(*) filter (where ${hiringProcessTable.archivedAt} is null)`,
+        archived: sql<number>`count(*) filter (where ${hiringProcessTable.archivedAt} is not null)`,
+        open: sql<number>`count(*) filter (where ${hiringProcessTable.archivedAt} is null and ${hiringProcessTable.status}::text in (${openList}))`,
+        closed: sql<number>`count(*) filter (where ${hiringProcessTable.archivedAt} is null and ${hiringProcessTable.status}::text not in (${openList}))`,
+        stale: sql<number>`count(*) filter (where ${hiringProcessTable.archivedAt} is null and ${hiringProcessTable.status}::text in (${openList}) and ${hiringProcessTable.updatedAt} < ${cutoff})`,
+      })
+      .from(hiringProcessTable)
+      .where(and(eq(hiringProcessTable.userId, userId), isNull(hiringProcessTable.deletedAt)));
+
+    return {
+      active: Number(row?.active ?? 0),
+      archived: Number(row?.archived ?? 0),
+      open: Number(row?.open ?? 0),
+      closed: Number(row?.closed ?? 0),
+      stale: Number(row?.stale ?? 0),
+    };
+  }
+
+  /**
+   * All active processes for the board.
+   * Grouping into status columns happens in the use case (N is small).
+   */
+  async findBoard(
+    userId: string,
+    filters?: Pick<HiringProcessFilterParams, "salaryDeclared" | "salaryMin" | "salaryMax">,
+  ): Promise<HiringProcessBase[]> {
+    const rows = await this.db
+      .select()
+      .from(hiringProcessTable)
+      .where(
+        and(
+          eq(hiringProcessTable.userId, userId),
+          isNull(hiringProcessTable.deletedAt),
+          isNull(hiringProcessTable.archivedAt),
+          ...this.buildSalaryConditions(filters),
+        ),
+      )
+      .orderBy(desc(hiringProcessTable.updatedAt));
+
+    return rows.map((row) => HiringProcessMapper.toDomain(row));
   }
 
   /**
