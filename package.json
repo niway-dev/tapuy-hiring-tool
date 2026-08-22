@@ -57,6 +57,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20251213.0",
+    "@electric-sql/pglite": "^0.3.0",
     "@types/bun": "catalog:",
     "husky": "^9.1.7",
     "lint-staged": "^16.1.2",

@@ -24,7 +24,7 @@
       "cache": false
     },
     "check-types": {
-      "dependsOn": ["transit"]
+      "dependsOn": ["^check-types", "transit"]
     },
     "dev": {
       "cache": false,

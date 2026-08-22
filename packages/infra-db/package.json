@@ -31,7 +31,6 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@electric-sql/pglite": "^0.3.0",
     "@interviews-tool/config": "workspace:*",
     "@interviews-tool/domain": "workspace:*",
     "@types/ws": "^8.18.1",
