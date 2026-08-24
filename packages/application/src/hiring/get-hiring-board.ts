@@ -33,7 +33,10 @@ export async function getHiringBoard(params: {
   const { repo, userId, filters } = params;
 
   try {
-    const [rows, counts] = await Promise.all([repo.findBoard(userId, filters), repo.counts(userId)]);
+    const [rows, counts] = await Promise.all([
+      repo.findBoard(userId, filters),
+      repo.counts(userId),
+    ]);
 
     const byStatus = new Map<HiringProcessStatus, HiringProcessBase[]>();
     for (const status of HIRING_PROCESS_STATUS_ORDER) {
