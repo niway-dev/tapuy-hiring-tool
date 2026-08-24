@@ -339,7 +339,7 @@ function HiringProcessDetailPage() {
               )}
               <Button
                 variant="ghost"
-                className="h-[30px] px-2.5 text-[13px] hover:bg-[#2E1414] hover:text-danger"
+                className="h-[30px] px-2.5 text-[13px] hover:bg-danger/10 hover:text-danger"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 {t("delete")}
@@ -398,7 +398,7 @@ function HiringProcessDetailPage() {
                 )}
                 <Button
                   variant="ghost"
-                  className="h-8 hover:bg-[#2E1414] hover:text-danger"
+                  className="h-8 hover:bg-danger/10 hover:text-danger"
                   onClick={() => setShowDeleteDialog(true)}
                 >
                   {t("delete")}
