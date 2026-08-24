@@ -1,5 +1,9 @@
 import { useTranslations } from "@interviews-tool/i18n";
-import type { HiringProcessStatus, InteractionType } from "@interviews-tool/domain/constants";
+import type {
+  ArchiveReason,
+  HiringProcessStatus,
+  InteractionType,
+} from "@interviews-tool/domain/constants";
 
 /* Domain values are kebab-case; message keys are camelCase (kebab-case keys
    would produce invalid identifiers in the generated IntlMessages interface). */
@@ -26,6 +30,18 @@ const interactionTypeKeys = {
   rejection: "rejection",
   "follow-up": "followUp",
 } as const satisfies Record<InteractionType, string>;
+
+const archiveReasonKeys = {
+  "no-reply": "noReply",
+  "they-passed": "theyPassed",
+  "i-withdrew": "iWithdrew",
+  "role-closed": "roleClosed",
+} as const satisfies Record<ArchiveReason, string>;
+
+export function useArchiveReasonLabel(): (reason: ArchiveReason) => string {
+  const t = useTranslations("archiveReasons");
+  return (reason: ArchiveReason) => t(archiveReasonKeys[reason]);
+}
 
 export function useStatusLabel(): (status: HiringProcessStatus) => string {
   const t = useTranslations("statuses");

@@ -7,7 +7,7 @@ import type {
   CreateHiringProcess,
   UpdateHiringProcess,
 } from "@interviews-tool/domain/schemas";
-import type { HiringProcessStatus } from "@interviews-tool/domain/constants";
+import { hiringProcessKeys, type HiringProcessListParams } from "./hiring-process-keys";
 
 // Re-export types from domain package
 export type { Currency, HiringProcessStatus } from "@interviews-tool/domain/constants";
@@ -17,33 +17,13 @@ export type HiringProcess = HiringProcessBase;
 export type CreateHiringProcessInput = CreateHiringProcess;
 export type UpdateHiringProcessInput = UpdateHiringProcess;
 
-// Pagination params type
-export interface PaginationParams {
-  page: number;
-  limit: number;
-}
-
-// Filter params type
-export interface FilterParams {
-  statuses?: HiringProcessStatus[];
-  salaryDeclared?: boolean;
-  salaryMin?: number;
-  salaryMax?: number;
-}
-
-// Combined params
-export interface HiringProcessListParams extends PaginationParams {
-  filters?: FilterParams;
-}
-
-// Query keys
-const hiringProcessKeys = {
-  all: ["hiringProcesses"] as const,
-  lists: () => [...hiringProcessKeys.all, "list"] as const,
-  list: (params?: HiringProcessListParams) => [...hiringProcessKeys.lists(), params] as const,
-  details: () => [...hiringProcessKeys.all, "detail"] as const,
-  detail: (id: string) => [...hiringProcessKeys.details(), id] as const,
-};
+export { hiringProcessKeys };
+export type {
+  PaginationParams,
+  FilterParams,
+  HiringProcessListParams,
+  BoardParams,
+} from "./hiring-process-keys";
 
 // Standalone query options — usable in both hooks and route loaders
 export function hiringProcessesQueryOptions(
@@ -56,6 +36,8 @@ export function hiringProcessesQueryOptions(
         data: {
           page: params.page,
           limit: params.limit,
+          sort: params.sort,
+          dir: params.dir,
           ...params.filters,
         },
       }),
@@ -108,8 +90,8 @@ export function useCreateHiringProcess() {
       return (result.data as { data: HiringProcess }).data;
     },
     onSuccess: () => {
-      // Invalidate and refetch hiring processes list (all pagination variants)
-      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.lists() });
+      // Invalidate lists and board alike
+      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all });
     },
   });
 }
@@ -128,8 +110,8 @@ export function useUpdateHiringProcess() {
       return (result.data as { data: HiringProcess }).data;
     },
     onSuccess: (_, variables) => {
-      // Invalidate both list and specific detail
-      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.lists() });
+      // Invalidate lists, board and the specific detail
+      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all });
       queryClient.invalidateQueries({ queryKey: hiringProcessKeys.detail(variables.id) });
     },
   });
@@ -148,8 +130,8 @@ export function useDeleteHiringProcess() {
       return;
     },
     onSuccess: () => {
-      // Invalidate hiring processes list (all pagination variants)
-      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.lists() });
+      // Invalidate lists and board alike
+      queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all });
     },
   });
 }

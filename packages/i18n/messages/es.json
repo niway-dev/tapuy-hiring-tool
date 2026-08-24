@@ -10,7 +10,9 @@
   "nav": {
     "appName": "tapuy",
     "dashboard": "Panel",
-    "signIn": "Iniciar sesión"
+    "signIn": "Iniciar sesión",
+    "switchToLight": "Cambiar a tema claro",
+    "switchToDark": "Cambiar a tema oscuro"
   },
   "userMenu": {
     "myAccount": "Mi cuenta",
@@ -271,7 +273,37 @@
     "loadError": "No pudimos cargar tus procesos. Revisa tu conexión e intenta de nuevo.",
     "retry": "Reintentar",
     "liveTip": "¿En una llamada? Abre un proceso y presiona <kbd>L</kbd> para notas en vivo.",
-    "liveNote": "Nota en vivo"
+    "liveNote": "Nota en vivo",
+    "viewTable": "Tabla",
+    "viewBoard": "Tablero",
+    "today": "hoy",
+    "moveTo": "Mover a",
+    "nothingHere": "Nada por aquí",
+    "dropHere": "Suelta aquí",
+    "boardLegend": "Arrastra una tarjeta para moverla, o usa ⋯ para elegir un estado. Mover no borra nada.",
+    "movedTo": "Movido a {status}",
+    "undo": "Deshacer",
+    "moveError": "No se pudo mover. Revisa tu conexión e inténtalo de nuevo.",
+    "scopeActive": "Activos",
+    "scopeArchived": "Archivados",
+    "staleStrip": "{count, plural, one {# proceso abierto lleva} other {# procesos abiertos llevan}} más de {days} días sin actualizarse.",
+    "showThem": "Verlos",
+    "notNow": "Ahora no",
+    "archiveTitle": "¿Archivar {company}?",
+    "archiveBody": "Conserva su estado y todas sus notas. Lo encontrarás en Archivados.",
+    "archiveWhy": "Por qué",
+    "archiveAction": "Archivar",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "archivedToast": "{company} archivado",
+    "restoredToast": "{company} restaurado",
+    "archiveError": "No se pudo archivar. Revisa tu conexión e inténtalo de nuevo.",
+    "restoreError": "No se pudo restaurar. Revisa tu conexión e inténtalo de nuevo.",
+    "columnsStatusWhenArchived": "Estado al archivar",
+    "columnsArchived": "Archivado",
+    "nothingArchivedTitle": "No hay nada archivado",
+    "nothingArchivedBody": "Los procesos que dejes de seguir esperarán aquí, con su estado y sus notas intactos.",
+    "archiveMenuItem": "Archivar…"
   },
   "capture": {
     "startLiveNote": "Iniciar nota en vivo",
@@ -324,5 +356,11 @@
     "inCallTitle": "¿En una llamada ahora?",
     "inCallBody": "Notas a pantalla completa con cronómetro. Marcas de hora con /, tus preguntas al lado, autoguardado mientras escribes.",
     "logItAfter": "Regístralo después"
+  },
+  "archiveReasons": {
+    "noReply": "Sin respuesta",
+    "theyPassed": "Me descartaron",
+    "iWithdrew": "Me retiré",
+    "roleClosed": "Vacante cerrada"
   }
 }

@@ -156,7 +156,7 @@ export function InteractionForm({
                 onClick={() => setTab(mode)}
                 className={cn(
                   "h-[22px] rounded-[5px] px-2 text-xs font-medium transition-colors",
-                  tab === mode ? "bg-[#1C232B] text-text" : "text-text-muted hover:text-text",
+                  tab === mode ? "bg-border text-text" : "text-text-muted hover:text-text",
                 )}
               >
                 {t(mode)}

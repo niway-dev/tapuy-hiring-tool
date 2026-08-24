@@ -24,6 +24,7 @@ import { CURRENCY_INFO, SALARY_RATE_TYPES } from "@interviews-tool/domain/consta
 import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
 
 import { DeleteConfirmDialog } from "@/components/hiring-process/delete-confirm-dialog";
+import { ArchiveDialog } from "@/components/hiring-process/archive-dialog";
 import { InteractionTimeline } from "@/components/interaction/interaction-timeline";
 import { InteractionForm } from "@/components/interaction/interaction-form";
 import { EditInteractionDialog } from "@/components/interaction/edit-interaction-dialog";
@@ -31,6 +32,11 @@ import { DeleteInteractionDialog } from "@/components/interaction/delete-interac
 import { LiveNote } from "@/components/interaction/live-note";
 import { QuestionsPanel } from "@/components/interaction/questions-panel";
 import { useHiringProcess, useDeleteHiringProcess } from "@/hooks/use-hiring-processes";
+import {
+  useArchiveHiringProcess,
+  useRestoreHiringProcess,
+} from "@/hooks/use-archive-hiring-process";
+import { isStaleProcess, type ArchiveReason } from "@interviews-tool/domain/constants";
 import { useCompanyDetails } from "@/hooks/use-company-details";
 import { useCreateInteraction, useInteractions, type Interaction } from "@/hooks/use-interactions";
 import { useStatusLabel } from "@/lib/i18n-labels";
@@ -91,12 +97,16 @@ function HiringProcessDetailPage() {
   const deleteMutation = useDeleteHiringProcess();
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false);
+  const archiveMutation = useArchiveHiringProcess();
+  const restoreMutation = useRestoreHiringProcess();
   const [editingInteraction, setEditingInteraction] = useState<Interaction | null>(null);
   const [deletingInteractionId, setDeletingInteractionId] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const showStickyHeader = useStickyHeader();
 
   const tCapture = useTranslations("capture");
+  const tDashboard = useTranslations("dashboard");
   const tInteraction = useTranslations("interaction");
   const { live } = Route.useSearch();
   const draft = useInteractionDraft(id);
@@ -165,6 +175,49 @@ function HiringProcessDetailPage() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleArchive = (reason: ArchiveReason) => {
+    setShowArchiveDialog(false);
+    archiveMutation.mutate(
+      { id, reason },
+      {
+        onSuccess: () =>
+          toast.success(
+            tDashboard("archivedToast", { company: hiringProcess?.companyName ?? "" }),
+            {
+              duration: 5000,
+              action: {
+                label: tDashboard("undo"),
+                onClick: () => restoreMutation.mutate({ id }),
+              },
+            },
+          ),
+        onError: () => toast.error(tDashboard("archiveError")),
+      },
+    );
+  };
+
+  const handleRestore = () => {
+    /* Kept so Undo can re-archive with the reason it originally had */
+    const previousReason = hiringProcess?.archiveReason ?? "no-reply";
+    restoreMutation.mutate(
+      { id },
+      {
+        onSuccess: () =>
+          toast.success(
+            tDashboard("restoredToast", { company: hiringProcess?.companyName ?? "" }),
+            {
+              duration: 5000,
+              action: {
+                label: tDashboard("undo"),
+                onClick: () => archiveMutation.mutate({ id, reason: previousReason }),
+              },
+            },
+          ),
+        onError: () => toast.error(tDashboard("restoreError")),
+      },
+    );
   };
 
   if (error) {
@@ -266,9 +319,27 @@ function HiringProcessDetailPage() {
                   {t("edit")}
                 </Button>
               </Link>
+              {hiringProcess.archivedAt ? (
+                <Button
+                  variant="ghost"
+                  className="h-[30px] px-2.5 text-[13px]"
+                  disabled={restoreMutation.isPending}
+                  onClick={handleRestore}
+                >
+                  {tDashboard("restore")}
+                </Button>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="h-[30px] px-2.5 text-[13px]"
+                  onClick={() => setShowArchiveDialog(true)}
+                >
+                  {tDashboard("archive")}
+                </Button>
+              )}
               <Button
                 variant="ghost"
-                className="h-[30px] px-2.5 text-[13px] hover:bg-[#2E1414] hover:text-danger"
+                className="h-[30px] px-2.5 text-[13px] hover:bg-danger/10 hover:text-danger"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 {t("delete")}
@@ -307,9 +378,27 @@ function HiringProcessDetailPage() {
                     {t("edit")}
                   </Button>
                 </Link>
+                {hiringProcess.archivedAt ? (
+                  <Button
+                    variant="ghost"
+                    className="h-8"
+                    disabled={restoreMutation.isPending}
+                    onClick={handleRestore}
+                  >
+                    {tDashboard("restore")}
+                  </Button>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    className="h-8"
+                    onClick={() => setShowArchiveDialog(true)}
+                  >
+                    {tDashboard("archive")}
+                  </Button>
+                )}
                 <Button
                   variant="ghost"
-                  className="h-8 hover:bg-[#2E1414] hover:text-danger"
+                  className="h-8 hover:bg-danger/10 hover:text-danger"
                   onClick={() => setShowDeleteDialog(true)}
                 >
                   {t("delete")}
@@ -478,6 +567,23 @@ function HiringProcessDetailPage() {
           </div>
         </div>
       </main>
+
+      {showArchiveDialog && hiringProcess && (
+        <ArchiveDialog
+          companyName={hiringProcess.companyName}
+          isStale={isStaleProcess(
+            {
+              status: hiringProcess.status,
+              updatedAt: new Date(hiringProcess.updatedAt),
+              archivedAt: hiringProcess.archivedAt,
+            },
+            new Date(),
+          )}
+          isArchiving={archiveMutation.isPending}
+          onConfirm={handleArchive}
+          onCancel={() => setShowArchiveDialog(false)}
+        />
+      )}
 
       {showDeleteDialog && hiringProcess && (
         <DeleteConfirmDialog

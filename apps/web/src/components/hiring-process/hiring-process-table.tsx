@@ -3,7 +3,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
   createColumnHelper,
   type SortingState,
   type PaginationState,
@@ -24,12 +23,13 @@ import {
   TableRow,
 } from "@interviews-tool/web-ui";
 import { useTranslations, useFormatter } from "@interviews-tool/i18n";
-import { useStatusLabel } from "@/lib/i18n-labels";
+import { useArchiveReasonLabel, useStatusLabel } from "@/lib/i18n-labels";
+import { useAgeLabel, useSalaryFormatter } from "@/lib/format";
 import { DeleteConfirmDialog } from "./delete-confirm-dialog";
 import type { HiringProcess } from "@/hooks/use-hiring-processes";
-import { SALARY_RATE_TYPES } from "@interviews-tool/domain/constants";
-import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
+import { isStaleProcess, type HiringProcessScope } from "@interviews-tool/domain/constants";
 import {
+  Archive,
   Pencil,
   Trash2,
   Eye,
@@ -51,6 +51,14 @@ interface InterviewTableProps {
   onPaginationChange: (pagination: PaginationState) => void;
   totalCount: number;
   isLoading?: boolean;
+  scope?: HiringProcessScope;
+  /** Opens the archive dialog; the row can't archive on its own because a reason is required */
+  onArchive?: (process: HiringProcess) => void;
+  onRestore?: (id: string) => void;
+  isMutating?: boolean;
+  /** Server-side: sorting a page of 10 rows in the browser would sort the wrong set */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
 }
 
 export function InterviewTable({
@@ -61,41 +69,28 @@ export function InterviewTable({
   onPaginationChange,
   totalCount,
   isLoading = false,
+  scope = "active",
+  onArchive,
+  onRestore,
+  isMutating = false,
+  sorting = [],
+  onSortingChange,
 }: InterviewTableProps) {
   const navigate = useNavigate();
   const t = useTranslations("dashboard");
-  const tForm = useTranslations("processForm");
   const format = useFormatter();
   const statusLabel = useStatusLabel();
+  const reasonLabel = useArchiveReasonLabel();
+  const formatSalary = useSalaryFormatter();
+  const ageLabel = useAgeLabel();
+  const isArchived = scope === "archived";
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [sorting, setSorting] = useState<SortingState>([{ id: "updatedAt", desc: true }]);
 
   const interviewToDelete = interviews.find((i) => i.id === deleteId);
   const pageCount = Math.ceil(totalCount / pagination.pageSize);
 
   const formatDate = (date: Date): string =>
     format.dateTime(new Date(date), { month: "short", day: "numeric", year: "numeric" });
-
-  /* "$5,200 / mo" — locale-aware amount plus the localized short rate
-     (the perMonthShort/perHourShort messages already include the slash).
-     Zero stays "–": the app treats 0 as undeclared. */
-  const formatSalary = (
-    salary: number | null,
-    currency: Currency = "USD",
-    salaryRateType?: SalaryRateType,
-  ): string => {
-    if (!salary) return "–";
-    const amount = format.number(salary, {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    });
-    if (!salaryRateType) return amount;
-    const short =
-      salaryRateType === SALARY_RATE_TYPES.HOURLY ? tForm("perHourShort") : tForm("perMonthShort");
-    return `${amount} ${short}`;
-  };
 
   const columns = useMemo(
     () => [
@@ -131,11 +126,13 @@ export function InterviewTable({
         enableSorting: true,
       }),
       columnHelper.accessor("status", {
-        header: t("columns.status"),
+        /* Archived rows keep the status they stopped at — that's the point of archiving */
+        header: isArchived ? t("columnsStatusWhenArchived") : t("columns.status"),
         cell: (info) => (
           <StatusBadge status={info.getValue()} label={statusLabel(info.getValue())} />
         ),
-        enableSorting: false,
+        /* The server orders this by pipeline position, never alphabetically */
+        enableSorting: true,
       }),
       columnHelper.accessor("salary", {
         header: () => <div className="text-right">{t("columns.salary")}</div>,
@@ -143,27 +140,47 @@ export function InterviewTable({
           const interview = info.row.original;
           return (
             <div className="mono text-right text-[13px] text-text">
-              {formatSalary(
-                info.getValue(),
-                interview.currency,
-                interview.salaryRateType as SalaryRateType | undefined,
-              )}
+              {formatSalary(info.getValue(), interview.currency, interview.salaryRateType)}
             </div>
           );
         },
         enableSorting: true,
-        sortingFn: (rowA, rowB) => (rowA.original.salary || 0) - (rowB.original.salary || 0),
       }),
-      columnHelper.accessor("updatedAt", {
-        header: t("columns.lastUpdate"),
-        cell: (info) => (
-          <span className="mono text-[13px] text-text-secondary">
-            {formatDate(info.getValue())}
-          </span>
-        ),
+      columnHelper.accessor(isArchived ? "archivedAt" : "updatedAt", {
+        id: isArchived ? "archivedAt" : "updatedAt",
+        header: isArchived ? t("columnsArchived") : t("columns.lastUpdate"),
+        cell: (info) => {
+          const interview = info.row.original;
+          const value = info.getValue() as Date | null | undefined;
+
+          if (isArchived) {
+            return (
+              <span className="mono text-[13px] text-text-secondary">
+                {value ? formatDate(value) : "–"}
+                {interview.archiveReason && (
+                  <span className="text-text-muted"> · {reasonLabel(interview.archiveReason)}</span>
+                )}
+              </span>
+            );
+          }
+
+          /* A stalled process says how long it has been silent, right next to the date */
+          const updatedAt = new Date(interview.updatedAt);
+          const stale = isStaleProcess(
+            { status: interview.status, updatedAt, archivedAt: interview.archivedAt },
+            new Date(),
+          );
+
+          return (
+            <span
+              className={`mono text-[13px] ${stale ? "text-status-on-hold-text" : "text-text-secondary"}`}
+            >
+              {formatDate(updatedAt)}
+              {stale && <span className="ml-2">{ageLabel(updatedAt)}</span>}
+            </span>
+          );
+        },
         enableSorting: true,
-        sortingFn: (rowA, rowB) =>
-          new Date(rowA.original.updatedAt).getTime() - new Date(rowB.original.updatedAt).getTime(),
       }),
       columnHelper.display({
         id: "actions",
@@ -171,47 +188,69 @@ export function InterviewTable({
         cell: (info) => {
           const interview = info.row.original;
           return (
-            <div className="flex items-center justify-end gap-0.5">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="gap-2 text-[13px] text-text-secondary hover:text-text"
-                onClick={() =>
-                  navigate({
-                    to: "/hiring-processes/$id",
-                    params: { id: interview.id },
-                    search: { live: true },
-                  })
-                }
-              >
-                <span className="size-1.5 rounded-full bg-mint" />
-                {t("liveNote")}
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title={t("view")}
-                className="text-text-muted hover:text-text"
-                onClick={() =>
-                  navigate({ to: "/hiring-processes/$id", params: { id: interview.id } })
-                }
-              >
-                <Eye className="size-3.5" />
-              </Button>
-              <Button
-                size="icon-sm"
-                variant="ghost"
-                title={t("edit")}
-                className="text-text-muted hover:text-text"
-                onClick={() =>
-                  navigate({
-                    to: "/hiring-processes/$id/edit",
-                    params: { id: interview.id },
-                  })
-                }
-              >
-                <Pencil className="size-3.5" />
-              </Button>
+            <div className="flex items-center justify-end gap-0.5 opacity-0 transition-opacity group-hover/row:opacity-100 focus-within:opacity-100">
+              {isArchived ? (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => onRestore?.(interview.id)}
+                  disabled={isMutating}
+                >
+                  {t("restore")}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-2 text-[13px] text-text-secondary hover:text-text"
+                    onClick={() =>
+                      navigate({
+                        to: "/hiring-processes/$id",
+                        params: { id: interview.id },
+                        search: { live: true },
+                      })
+                    }
+                  >
+                    <span className="size-1.5 rounded-full bg-mint" />
+                    {t("liveNote")}
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t("view")}
+                    className="text-text-muted hover:text-text"
+                    onClick={() =>
+                      navigate({ to: "/hiring-processes/$id", params: { id: interview.id } })
+                    }
+                  >
+                    <Eye className="size-3.5" />
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t("edit")}
+                    className="text-text-muted hover:text-text"
+                    onClick={() =>
+                      navigate({
+                        to: "/hiring-processes/$id/edit",
+                        params: { id: interview.id },
+                      })
+                    }
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                  <Button
+                    size="icon-sm"
+                    variant="ghost"
+                    title={t("archive")}
+                    className="text-text-muted hover:text-text"
+                    onClick={() => onArchive?.(interview)}
+                  >
+                    <Archive className="size-3.5" />
+                  </Button>
+                </>
+              )}
               <Button
                 size="icon-sm"
                 variant="ghost"
@@ -227,8 +266,8 @@ export function InterviewTable({
         enableSorting: false,
       }),
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- formatSalary/formatDate derive from format+tForm
-    [navigate, t, tForm, statusLabel, format],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- formatSalary/formatDate derive from format, which is in the deps
+    [navigate, t, statusLabel, format, isArchived, onArchive, onRestore, isMutating],
   );
 
   const table = useReactTable({
@@ -237,8 +276,11 @@ export function InterviewTable({
     pageCount,
     manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
+    manualSorting: true,
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      onSortingChange?.(next);
+    },
     onPaginationChange: (updater) => {
       const newPagination = typeof updater === "function" ? updater(pagination) : updater;
       onPaginationChange(newPagination);
@@ -298,7 +340,7 @@ export function InterviewTable({
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows.map((row) => (
-              <TableRow key={row.id}>
+              <TableRow key={row.id} className="group/row">
                 {row.getVisibleCells().map((cell) => (
                   <TableCell key={cell.id}>
                     {typeof cell.column.columnDef.cell === "function"

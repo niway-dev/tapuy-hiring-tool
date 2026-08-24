@@ -4,11 +4,15 @@ export {
   createHiringProcessSchema,
   updateHiringProcessSchema,
   partialUpdateHiringProcessSchema,
+  changeHiringProcessStatusSchema,
+  archiveHiringProcessSchema,
   filterHiringProcessSchema,
   type HiringProcessBase,
   type CreateHiringProcess,
   type UpdateHiringProcess,
   type PartialUpdateHiringProcess,
+  type ChangeHiringProcessStatus,
+  type ArchiveHiringProcess,
   type FilterHiringProcess,
 } from "./hiring-process";
 
@@ -37,7 +41,9 @@ export {
   paginationQuerySchema,
   hiringProcessFilterSchema,
   hiringProcessQuerySchema,
+  hiringProcessListQuerySchema,
   type PaginationQuery,
   type HiringProcessFilter,
   type HiringProcessQuery,
+  type HiringProcessListQuery,
 } from "./pagination";

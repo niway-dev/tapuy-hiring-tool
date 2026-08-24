@@ -2,19 +2,28 @@ import { Link } from "@tanstack/react-router";
 
 import { useTranslations } from "@interviews-tool/i18n";
 import { Button, TapuyLockup } from "@interviews-tool/web-ui";
-import { Star } from "lucide-react";
+import { Moon, Star, Sun } from "lucide-react";
 
 import { LocaleSwitcher } from "./locale-switcher";
 import UserMenu from "./user-menu";
 import type { AuthSession } from "@/lib/auth/types";
+import type { Theme } from "@/functions/theme";
 
 interface HeaderProps {
   isAuthenticated: boolean;
   userName: AuthSession["user"]["name"];
   userEmail: AuthSession["user"]["email"];
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
-export default function Header({ isAuthenticated, userName, userEmail }: HeaderProps) {
+export default function Header({
+  isAuthenticated,
+  userName,
+  userEmail,
+  theme,
+  onToggleTheme,
+}: HeaderProps) {
   const t = useTranslations("nav");
 
   return (
@@ -34,6 +43,15 @@ export default function Header({ isAuthenticated, userName, userEmail }: HeaderP
           )}
         </nav>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onToggleTheme}
+            title={t(theme === "dark" ? "switchToLight" : "switchToDark")}
+            aria-label={t(theme === "dark" ? "switchToLight" : "switchToDark")}
+            className="flex size-8 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-2 hover:text-text"
+          >
+            {theme === "dark" ? <Moon className="size-4" /> : <Sun className="size-4" />}
+          </button>
           <LocaleSwitcher />
           <UserMenu userName={userName} userEmail={userEmail} isAuthenticated={isAuthenticated} />
           {!isAuthenticated && (

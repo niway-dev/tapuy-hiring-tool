@@ -26,6 +26,8 @@ export class HiringProcessMapper {
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
       deletedAt: row.deletedAt,
+      archivedAt: row.archivedAt,
+      archiveReason: row.archiveReason,
     };
   }
 
@@ -48,6 +50,8 @@ export class HiringProcessMapper {
       createdAt: hiringProcess.createdAt,
       updatedAt: hiringProcess.updatedAt,
       deletedAt: hiringProcess.deletedAt,
+      archivedAt: hiringProcess.archivedAt,
+      archiveReason: hiringProcess.archiveReason,
     };
   }
 }

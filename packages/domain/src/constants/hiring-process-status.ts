@@ -32,6 +32,37 @@ export const HIRING_PROCESS_STATUS_VALUES = [
 ] as const;
 
 /**
+ * Pipeline order — board columns, status <select> order, and the sort
+ * criterion for the Status column. This is DISPLAY order and is intentionally
+ * different from HIRING_PROCESS_STATUS_VALUES (which feeds the pgEnum and
+ * must never be reordered) and from HIRING_PROCESS_STATUS_INFO[x].order.
+ */
+export const HIRING_PROCESS_STATUS_ORDER = [
+  HIRING_PROCESS_STATUSES.FIRST_CONTACT,
+  HIRING_PROCESS_STATUSES.ONGOING,
+  HIRING_PROCESS_STATUSES.ON_HOLD,
+  HIRING_PROCESS_STATUSES.OFFER_MADE,
+  HIRING_PROCESS_STATUSES.OFFER_ACCEPTED,
+  HIRING_PROCESS_STATUSES.HIRED,
+  HIRING_PROCESS_STATUSES.REJECTED,
+  HIRING_PROCESS_STATUSES.DROPPED_OUT,
+] as const satisfies readonly HiringProcessStatus[];
+
+/** First 4 of the pipeline: statuses that keep a process "open" */
+export const OPEN_STATUSES: readonly HiringProcessStatus[] = HIRING_PROCESS_STATUS_ORDER.slice(
+  0,
+  4,
+);
+
+/** Last 4 of the pipeline: terminal statuses */
+export const CLOSED_STATUSES: readonly HiringProcessStatus[] = HIRING_PROCESS_STATUS_ORDER.slice(4);
+
+/** Index of a status within the pipeline; sort comparator for the Status column */
+export function statusPipelineIndex(status: HiringProcessStatus): number {
+  return HIRING_PROCESS_STATUS_ORDER.indexOf(status);
+}
+
+/**
  * Status metadata for UI display and business logic
  */
 export const HIRING_PROCESS_STATUS_INFO: Record<
@@ -129,7 +160,12 @@ export const STATUS_TRANSITIONS: Record<HiringProcessStatus, HiringProcessStatus
   [HIRING_PROCESS_STATUSES.REJECTED]: [], // Terminal status
   [HIRING_PROCESS_STATUSES.DROPPED_OUT]: [], // Terminal status
   [HIRING_PROCESS_STATUSES.HIRED]: [], // Terminal status
-  [HIRING_PROCESS_STATUSES.OFFER_MADE]: [], // Terminal status
+  [HIRING_PROCESS_STATUSES.OFFER_MADE]: [
+    HIRING_PROCESS_STATUSES.OFFER_ACCEPTED,
+    HIRING_PROCESS_STATUSES.REJECTED,
+    HIRING_PROCESS_STATUSES.DROPPED_OUT,
+    HIRING_PROCESS_STATUSES.ON_HOLD,
+  ],
   [HIRING_PROCESS_STATUSES.OFFER_ACCEPTED]: [], // Terminal status
 };
 

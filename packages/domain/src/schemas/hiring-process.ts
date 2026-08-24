@@ -1,5 +1,10 @@
 import { z } from "zod";
-import { HIRING_PROCESS_STATUSES, CURRENCIES, SALARY_RATE_TYPES } from "../constants";
+import {
+  HIRING_PROCESS_STATUSES,
+  CURRENCIES,
+  SALARY_RATE_TYPES,
+  ARCHIVE_REASON_VALUES,
+} from "../constants";
 
 /**
  * Base schema for HiringProcess
@@ -18,6 +23,8 @@ export const hiringProcessBaseSchema = z.object({
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
   deletedAt: z.coerce.date().nullable().optional(),
+  archivedAt: z.coerce.date().nullable().optional(), // null = active; orthogonal to status
+  archiveReason: z.enum(ARCHIVE_REASON_VALUES).nullable().optional(), // set iff archivedAt is set
 });
 
 /**
@@ -51,6 +58,23 @@ export const updateHiringProcessSchema = createHiringProcessSchema;
 export const partialUpdateHiringProcessSchema = updateHiringProcessSchema.partial();
 
 /**
+ * Status-only change (board move).
+ * Deliberately separate from the full update: moving a card must never
+ * touch companyName/jobTitle/salary, which a full-body PUT would rewrite.
+ */
+export const changeHiringProcessStatusSchema = z.object({
+  status: z.enum(HIRING_PROCESS_STATUSES),
+});
+
+/**
+ * Archiving takes a reason. It is a record, not decoration: it's what
+ * later answers "of 40 processes, how many died without a reply".
+ */
+export const archiveHiringProcessSchema = z.object({
+  reason: z.enum(ARCHIVE_REASON_VALUES),
+});
+
+/**
  * Query/Filter schema
  * For filtering hiring processes
  */
@@ -64,4 +88,6 @@ export type HiringProcessBase = z.infer<typeof hiringProcessBaseSchema>;
 export type CreateHiringProcess = z.infer<typeof createHiringProcessSchema>;
 export type UpdateHiringProcess = z.infer<typeof updateHiringProcessSchema>;
 export type PartialUpdateHiringProcess = z.infer<typeof partialUpdateHiringProcessSchema>;
+export type ChangeHiringProcessStatus = z.infer<typeof changeHiringProcessStatusSchema>;
+export type ArchiveHiringProcess = z.infer<typeof archiveHiringProcessSchema>;
 export type FilterHiringProcess = z.infer<typeof filterHiringProcessSchema>;
