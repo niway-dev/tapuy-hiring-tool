@@ -10,7 +10,9 @@
   "nav": {
     "appName": "tapuy",
     "dashboard": "Panel",
-    "signIn": "Iniciar sesión"
+    "signIn": "Iniciar sesión",
+    "switchToLight": "Cambiar a tema claro",
+    "switchToDark": "Cambiar a tema oscuro"
   },
   "userMenu": {
     "myAccount": "Mi cuenta",

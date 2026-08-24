@@ -10,7 +10,9 @@
   "nav": {
     "appName": "tapuy",
     "dashboard": "Dashboard",
-    "signIn": "Sign In"
+    "signIn": "Sign In",
+    "switchToLight": "Switch to light theme",
+    "switchToDark": "Switch to dark theme"
   },
   "userMenu": {
     "myAccount": "My Account",
