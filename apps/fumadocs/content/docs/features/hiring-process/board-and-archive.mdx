@@ -1,0 +1,129 @@
+---
+title: Board & Archive
+description: Kanban board with drag-and-drop status moves, plus archiving processes without losing the status they stopped at
+---
+
+# Board & Archive
+
+## Status
+
+| Field          | Value                   |
+| -------------- | ----------------------- |
+| Status         | ✅ Complete             |
+| Completed      | 2026-08-24              |
+| Author         | Cristian Sotomayor      |
+| Parent Feature | [Hiring Process](index) |
+| Related Issues | N/A                     |
+
+## What It Does
+
+The dashboard gains a board view alongside the table: eight columns in pipeline
+order, cards you drag between them, and a `⋯` menu that reaches every status
+without a mouse. Processes you stop following can be archived with a reason —
+they keep the status they died in and every note, and wait under an Archived
+scope until you restore them. A strip over the list points out processes that
+have gone quiet past the stale threshold, because otherwise nobody remembers to
+tidy up.
+
+## Implementation
+
+### Files Changed
+
+| Path                                                     | Purpose                                                           |
+| -------------------------------------------------------- | ----------------------------------------------------------------- |
+| `packages/domain/src/constants/hiring-process-status.ts` | Pipeline display order, open/closed grouping, sort index          |
+| `packages/domain/src/constants/archive-reason.ts`        | The four archive reasons                                          |
+| `packages/domain/src/constants/stale.ts`                 | Stale threshold, `isStaleProcess`, `formatAge`                    |
+| `packages/domain/src/constants/hiring-process-query.ts`  | Scope, sortable fields, sort direction                            |
+| `packages/domain/src/repositories/`                      | `IHiringProcessArchiveRepository`, the archive/board capabilities |
+| `packages/infra-db/src/schema/hiring-process.ts`         | `archived_at`, `archive_reason`, index, consistency CHECK         |
+| `packages/infra-db/src/repositories/`                    | archive/restore/counts/findBoard, plus scope, stale and sort      |
+| `packages/application/src/hiring/`                       | Move, archive, restore, board and list-with-counts use cases      |
+| `apps/server/src/routes/hiring-processes.ts`             | `PATCH /:id/status`, `POST /:id/archive`, `POST /:id/restore`     |
+| `apps/web/src/functions/`                                | List (with counts) and board server functions, theme cookie       |
+| `apps/web/src/components/hiring-process/`                | Board, cards, archive dialog, stale strip, scope segment          |
+| `apps/web/src/routes/_authenticated/hiring-processes/`   | URL-driven dashboard state, archive entry points                  |
+
+### Domain Model
+
+`HiringProcess` gains two nullable fields: `archivedAt` and `archiveReason`.
+They are orthogonal to `status` and to the pre-existing `deletedAt` soft delete,
+so a process can be archived while still being `ongoing`. A database CHECK keeps
+the pair consistent — both null or both set.
+
+### Key Logic
+
+Archiving and restoring go through dedicated repository methods that write only
+the archive fields and pin `updatedAt` to itself, which defeats the schema-level
+`$onUpdate` and keeps a restored process exactly where it was in the ordering.
+Moving a card writes only `status`, which does advance `updatedAt`. The board
+reads every active process in one query and groups it into all eight columns in
+memory. Counts for the scope segments and the stale strip come from a single
+aggregate query that rides along with the rows. Mutations patch the cache
+optimistically and roll back on failure; the toast carries the previous value so
+Undo can call the inverse operation.
+
+## Decisions
+
+| Decision                                                                  | Why                                                                                                                                                   | Alternatives Considered                                            |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `archived` is a mark orthogonal to status, not a ninth status             | A process that died unanswered is still `ongoing`; that is the truth of where it stopped. Folding it into status loses that and pollutes the pipeline | Adding an `archived` status value                                  |
+| Archive and restore never touch `status` or `updatedAt`                   | Restoring must put the process back where it was, not jump it to the top of a list ordered by last update                                             | Letting the generic update helper handle it                        |
+| A new `HIRING_PROCESS_STATUS_ORDER` instead of reordering existing values | `HIRING_PROCESS_STATUS_VALUES` feeds the Postgres enum; reordering it would mean altering the type for a purely visual concern                        | Reordering the enum, or reusing `HIRING_PROCESS_STATUS_INFO.order` |
+| A dedicated `PATCH /:id/status` rather than the existing `PUT /:id`       | The update schema equals the create schema, so a partial body silently blanks `jobTitle` and `salary`. A drag must never rewrite unrelated fields     | Sending the whole entity on every move                             |
+| Moves do not validate `STATUS_TRANSITIONS`                                | The board exists to correct mistakes in any direction; a transition table would block legitimate corrections                                          | Enforcing the transition graph server-side                         |
+| The archive capabilities live in a separate repository interface          | Keeps the frozen Prisma implementation satisfying its interface untouched while Drizzle grows                                                         | Widening `IHiringProcessRepository` and implementing it twice      |
+| Dashboard reads consolidated on Drizzle                                   | Scope, stale, sort and counts exist only there; two ORMs serving the same list meant every change had to be written twice                             | Implementing the new reads in Prisma too                           |
+| All dashboard state in URL search params                                  | Shareable, survives refresh, and back/forward walk through it. A single helper resets the page so a filter change cannot strand you on page 4         | Local component state, or persisting to storage                    |
+| Sorting moved to the server                                               | The table was ordering only the ten rows it had in hand, which sorts the wrong set. Status now orders by pipeline position, not alphabetically        | Fetching everything and sorting client-side                        |
+| Scope is never persisted; view is                                         | Every visit should start on Active — archived is somewhere you go deliberately. How you like to look at the pipeline is a real preference             | Persisting both, or neither                                        |
+| Archived is a table-only scope                                            | A board of things you stopped following is noise, and their status is frozen history                                                                  | Offering the board in both scopes                                  |
+| The archive reason is preselected                                         | Most archives never pick one; a stalled process almost certainly went unanswered, so the common case is a single click                                | An empty selection requiring a choice                              |
+| Undo lasts 5 seconds                                                      | An undo that expires before it is read does not exist                                                                                                 | The 3s default                                                     |
+| Undo of a move lets `updatedAt` advance                                   | Undoing a move is another status change and honestly is one; only archive/restore are exact reverts                                                   | Threading the original timestamp through an undo token             |
+| Theme comes from a server-read cookie                                     | The first HTML already carries the right `data-theme`, so the page never repaints after hydration                                                     | localStorage plus an anti-FOUC inline script                       |
+| No cap on board size, no rate limit on moves                              | A personal tool with dozens of processes; both would be complexity guarding against a load that does not exist                                        | Paginating columns, throttling moves                               |
+
+## Gotchas & Warnings
+
+- ⚠️ Declaring a Drizzle optional peer (such as `@electric-sql/pglite`) inside one package makes bun resolve a **second copy of drizzle-orm**, and its `PgColumn` stops being assignable to `SQLWrapper` elsewhere — type errors appear in files nobody touched. Such peers belong in the root.
+- ⚠️ `check-types` in `turbo.json` must depend on `^check-types`. It once depended only on the no-op `transit` task, so a change in `infra-db` left `apps/server`'s result cached and a real breakage invisible, in CI too.
+- ⚠️ `apps/web` still has **no `check-types` script**, so nothing type-checks the frontend; `vite build` only strips types. Adding one first requires replacing the `@/` aliases in `apps/server`, or tsc drags its sources in under the web tsconfig and reports 44 false errors.
+- ⚠️ Adding a file with `createServerFn` while the dev server runs leaves the manifest stale and every call fails with `Invalid server function ID`. Kill vite, delete `apps/web/node_modules/.vite`, restart.
+- ⚠️ Base UI's `DropdownMenuLabel` is a group part: without a `DropdownMenuGroup` ancestor it throws the moment the menu opens. Neither tsc nor SSR catches it.
+- ⚠️ The archive fields must be pushed to the database before this code runs anywhere. Drizzle's `select()` names every schema column, so a branch whose database lacks them fails every dashboard query.
+- ⚠️ The process detail route renders its data client-side, so nothing it shows appears in server-rendered HTML — it cannot be asserted over HTTP.
+
+## Dependencies
+
+Dev-only: `@electric-sql/pglite` (root) for in-memory Postgres in repository
+tests, and `vitest` plus `@testing-library/user-event` in `apps/web`. No runtime
+dependencies added — drag and drop is native HTML5, and the menu, dialog and
+toasts reuse Base UI and Sonner.
+
+## Testing
+
+```bash
+# Everything
+bun run test
+
+# Domain rules: stale threshold, age formatting, pipeline order
+cd packages/domain && bun run test
+
+# Repository invariants against a real Postgres in memory
+cd packages/infra-db && bun run test
+
+# Component flows: menu, drag and drop, archive dialog, row actions
+cd apps/web && bun run test
+
+# Manual: open /hiring-processes, switch to Board, drag a card between
+# columns, confirm the toast and press Undo. Archive from a row, check it
+# appears under Archived with its status intact, then restore it.
+```
+
+## Related
+
+- [Implementation Summary](implementation-summary) — the CRUD this builds on
+- [Salary Rate Type](salary-rate-type) — the salary shape shown on cards
+- `docs/superpowers/specs/2026-08-23-board-archive-tech-spec.md` — the spec, its
+  audit of the codebase and the answers that shaped this work
