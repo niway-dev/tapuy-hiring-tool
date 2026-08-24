@@ -9,7 +9,8 @@
     "dev": "vite dev",
     "deploy": "alchemy deploy",
     "destroy": "alchemy destroy",
-    "wrangler:dev": "wrangler dev --port 3001 --inspector-port 9230"
+    "wrangler:dev": "wrangler dev --port 3001 --inspector-port 9230",
+    "test": "vitest run"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -54,6 +55,7 @@
     "@tanstack/router-plugin": "^1.141.1",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
+    "@testing-library/user-event": "^14.6.6",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "catalog:",
@@ -62,6 +64,7 @@
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3",
     "web-vitals": "^5.0.3"
   }
 }
