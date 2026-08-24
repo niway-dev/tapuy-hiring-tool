@@ -43,7 +43,11 @@ import { ProcessBoard } from "@/components/hiring-process/process-board";
 import { ScopeSegment } from "@/components/hiring-process/scope-segment";
 import { StaleStrip } from "@/components/hiring-process/stale-strip";
 import { ArchiveDialog } from "@/components/hiring-process/archive-dialog";
-import { useHiringBoard, useMoveHiringProcessStatus } from "@/hooks/use-hiring-board";
+import {
+  hiringBoardQueryOptions,
+  useHiringBoard,
+  useMoveHiringProcessStatus,
+} from "@/hooks/use-hiring-board";
 import {
   useArchiveHiringProcess,
   useRestoreHiringProcess,
@@ -85,23 +89,36 @@ type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
 export const Route = createFileRoute("/_authenticated/hiring-processes/")({
   validateSearch: dashboardSearchSchema,
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(
-      hiringProcessesQueryOptions({
-        page: deps.page ?? 1,
-        limit: deps.limit ?? DEFAULT_PAGE_SIZE,
-        filters: {
-          scope: deps.scope ?? "active",
-          statuses: deps.statuses,
-          salaryDeclared: deps.salaryDeclared,
-          salaryMin: deps.salaryMin,
-          salaryMax: deps.salaryMax,
-          stale: deps.stale,
-        },
-        sort: deps.sort,
-        dir: deps.dir,
-      }),
-    ),
+  loader: async ({ context, deps }) => {
+    const salaryFilters = {
+      salaryDeclared: deps.salaryDeclared,
+      salaryMin: deps.salaryMin,
+      salaryMax: deps.salaryMax,
+    };
+
+    /* The list feeds the header counts in either view, so it is always warmed.
+       The board only when the URL asks for it — otherwise a shared board link
+       renders its skeleton first and fills in a round trip later. */
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        hiringProcessesQueryOptions({
+          page: deps.page ?? 1,
+          limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+          filters: {
+            scope: deps.scope ?? "active",
+            statuses: deps.statuses,
+            stale: deps.stale,
+            ...salaryFilters,
+          },
+          sort: deps.sort,
+          dir: deps.dir,
+        }),
+      ),
+      deps.view === "board"
+        ? context.queryClient.ensureQueryData(hiringBoardQueryOptions(salaryFilters))
+        : Promise.resolve(),
+    ]);
+  },
   component: HiringProcessesComponent,
 });
 
