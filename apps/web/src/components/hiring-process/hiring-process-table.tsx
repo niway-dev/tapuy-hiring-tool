@@ -3,7 +3,6 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   useReactTable,
   getCoreRowModel,
-  getSortedRowModel,
   createColumnHelper,
   type SortingState,
   type PaginationState,
@@ -57,6 +56,9 @@ interface InterviewTableProps {
   onArchive?: (process: HiringProcess) => void;
   onRestore?: (id: string) => void;
   isMutating?: boolean;
+  /** Server-side: sorting a page of 10 rows in the browser would sort the wrong set */
+  sorting?: SortingState;
+  onSortingChange?: (sorting: SortingState) => void;
 }
 
 export function InterviewTable({
@@ -71,6 +73,8 @@ export function InterviewTable({
   onArchive,
   onRestore,
   isMutating = false,
+  sorting = [],
+  onSortingChange,
 }: InterviewTableProps) {
   const navigate = useNavigate();
   const t = useTranslations("dashboard");
@@ -81,7 +85,6 @@ export function InterviewTable({
   const ageLabel = useAgeLabel();
   const isArchived = scope === "archived";
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [sorting, setSorting] = useState<SortingState>([{ id: "updatedAt", desc: true }]);
 
   const interviewToDelete = interviews.find((i) => i.id === deleteId);
   const pageCount = Math.ceil(totalCount / pagination.pageSize);
@@ -128,7 +131,8 @@ export function InterviewTable({
         cell: (info) => (
           <StatusBadge status={info.getValue()} label={statusLabel(info.getValue())} />
         ),
-        enableSorting: false,
+        /* The server orders this by pipeline position, never alphabetically */
+        enableSorting: true,
       }),
       columnHelper.accessor("salary", {
         header: () => <div className="text-right">{t("columns.salary")}</div>,
@@ -141,10 +145,9 @@ export function InterviewTable({
           );
         },
         enableSorting: true,
-        sortingFn: (rowA, rowB) => (rowA.original.salary || 0) - (rowB.original.salary || 0),
       }),
       columnHelper.accessor(isArchived ? "archivedAt" : "updatedAt", {
-        id: "updatedAt",
+        id: isArchived ? "archivedAt" : "updatedAt",
         header: isArchived ? t("columnsArchived") : t("columns.lastUpdate"),
         cell: (info) => {
           const interview = info.row.original;
@@ -178,8 +181,6 @@ export function InterviewTable({
           );
         },
         enableSorting: true,
-        sortingFn: (rowA, rowB) =>
-          new Date(rowA.original.updatedAt).getTime() - new Date(rowB.original.updatedAt).getTime(),
       }),
       columnHelper.display({
         id: "actions",
@@ -275,8 +276,11 @@ export function InterviewTable({
     pageCount,
     manualPagination: true,
     getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    onSortingChange: setSorting,
+    manualSorting: true,
+    onSortingChange: (updater) => {
+      const next = typeof updater === "function" ? updater(sorting) : updater;
+      onSortingChange?.(next);
+    },
     onPaginationChange: (updater) => {
       const newPagination = typeof updater === "function" ? updater(pagination) : updater;
       onPaginationChange(newPagination);

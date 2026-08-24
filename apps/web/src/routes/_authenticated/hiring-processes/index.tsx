@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { z } from "zod";
 import {
   Button,
   DropdownMenu,
@@ -19,7 +20,10 @@ import {
 } from "@interviews-tool/web-ui";
 import {
   ARCHIVE_REASONS,
+  HIRING_PROCESS_SCOPE_VALUES,
+  HIRING_PROCESS_SORT_FIELD_VALUES,
   HIRING_PROCESS_STATUS_VALUES,
+  SORT_DIRECTION_VALUES,
   isStaleProcess,
   type ArchiveReason,
   type HiringProcessScope,
@@ -54,9 +58,50 @@ const VIEW_STORAGE_KEY = "tapuy:dashboard-view";
 
 const STALE_DISMISS_KEY = "tapuy:stale-dismissed";
 
+const DEFAULT_PAGE_SIZE = 10;
+
+/**
+ * The whole dashboard state lives in the URL: shareable, survives a refresh,
+ * and back/forward walk through it. Every field falls back rather than throws,
+ * so a hand-edited or stale link degrades to the default view instead of an
+ * error page.
+ */
+const dashboardSearchSchema = z.object({
+  scope: z.enum(HIRING_PROCESS_SCOPE_VALUES).optional().catch(undefined),
+  view: z.enum(["table", "board"]).optional().catch(undefined),
+  statuses: z.array(z.enum(HIRING_PROCESS_STATUS_VALUES)).optional().catch(undefined),
+  salaryDeclared: z.coerce.boolean().optional().catch(undefined),
+  salaryMin: z.coerce.number().int().min(0).optional().catch(undefined),
+  salaryMax: z.coerce.number().int().min(0).optional().catch(undefined),
+  stale: z.coerce.boolean().optional().catch(undefined),
+  sort: z.enum(HIRING_PROCESS_SORT_FIELD_VALUES).optional().catch(undefined),
+  dir: z.enum(SORT_DIRECTION_VALUES).optional().catch(undefined),
+  page: z.coerce.number().int().min(1).optional().catch(undefined),
+  limit: z.coerce.number().int().min(1).max(100).optional().catch(undefined),
+});
+
+type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
+
 export const Route = createFileRoute("/_authenticated/hiring-processes/")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(hiringProcessesQueryOptions({ page: 1, limit: 10 })),
+  validateSearch: dashboardSearchSchema,
+  loaderDeps: ({ search }) => search,
+  loader: ({ context, deps }) =>
+    context.queryClient.ensureQueryData(
+      hiringProcessesQueryOptions({
+        page: deps.page ?? 1,
+        limit: deps.limit ?? DEFAULT_PAGE_SIZE,
+        filters: {
+          scope: deps.scope ?? "active",
+          statuses: deps.statuses,
+          salaryDeclared: deps.salaryDeclared,
+          salaryMin: deps.salaryMin,
+          salaryMax: deps.salaryMax,
+          stale: deps.stale,
+        },
+        sort: deps.sort,
+        dir: deps.dir,
+      }),
+    ),
   component: HiringProcessesComponent,
 });
 
@@ -127,16 +172,37 @@ function ViewSegmentButton({
 function HiringProcessesComponent() {
   const t = useTranslations("dashboard");
   const statusLabel = useStatusLabel();
+  const search = Route.useSearch();
+  const navigate = useNavigate({ from: Route.fullPath });
 
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 10,
-  });
+  /**
+   * Single entry point for every search-param change. Page always goes back to
+   * 1 unless the caller is the pagination itself — changing a filter, the
+   * scope, the view or the sort while on page 4 would otherwise strand you on
+   * a page that no longer exists.
+   */
+  const setSearch = useCallback(
+    (partial: Partial<DashboardSearch>) => {
+      navigate({
+        search: (prev) => ({ ...prev, page: undefined, ...partial }),
+        replace: true,
+      });
+    },
+    [navigate],
+  );
 
-  const [filters, setFilters] = useState<FilterParams>({});
+  const scope = search.scope ?? "active";
+  const page = search.page ?? 1;
+  const limit = search.limit ?? DEFAULT_PAGE_SIZE;
 
-  /* Scope is never persisted: every visit starts on Active */
-  const [scope, setScope] = useState<HiringProcessScope>("active");
+  const filters: FilterParams = {
+    statuses: search.statuses,
+    salaryDeclared: search.salaryDeclared,
+    salaryMin: search.salaryMin,
+    salaryMax: search.salaryMax,
+    stale: search.stale,
+    scope,
+  };
 
   const [archiveTarget, setArchiveTarget] = useState<HiringProcess | null>(null);
   const [staleDismissed, setStaleDismissed] = useState(false);
@@ -145,22 +211,28 @@ function HiringProcessesComponent() {
     setStaleDismissed(sessionStorage.getItem(STALE_DISMISS_KEY) === "1");
   }, []);
 
-  /* Read after mount: the server can't know the stored preference, and
-     seeding it during render would desync hydration. */
-  const [view, setView] = useState<DashboardView>("table");
+  /* The URL wins; without it, fall back to the last view you chose. Read after
+     mount because the server can't know it and seeding it during render would
+     desync hydration. */
+  const [storedView, setStoredView] = useState<DashboardView | null>(null);
   useEffect(() => {
     const stored = localStorage.getItem(VIEW_STORAGE_KEY);
-    if (stored === "board" || stored === "table") setView(stored);
+    if (stored === "board" || stored === "table") setStoredView(stored);
   }, []);
 
-  const changeView = useCallback((next: DashboardView) => {
-    setView(next);
-    try {
-      localStorage.setItem(VIEW_STORAGE_KEY, next);
-    } catch {
-      /* private mode — the preference just won't persist */
-    }
-  }, []);
+  const view: DashboardView = search.view ?? storedView ?? "table";
+
+  const changeView = useCallback(
+    (next: DashboardView) => {
+      setSearch({ view: next });
+      try {
+        localStorage.setItem(VIEW_STORAGE_KEY, next);
+      } catch {
+        /* private mode — the preference just won't persist */
+      }
+    },
+    [setSearch],
+  );
 
   const hasActiveFilters =
     (filters.statuses && filters.statuses.length > 0) ||
@@ -169,21 +241,40 @@ function HiringProcessesComponent() {
     filters.salaryMax !== undefined ||
     filters.stale === true;
 
-  const changeScope = useCallback((next: HiringProcessScope) => {
-    setScope(next);
-    setFilters({});
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, []);
+  const changeScope = useCallback(
+    (next: HiringProcessScope) => {
+      /* Filters and sort are scope-specific: archived has no status filter and
+         sorts by a column that doesn't exist on the active side. */
+      setSearch({
+        scope: next,
+        statuses: undefined,
+        salaryDeclared: undefined,
+        salaryMin: undefined,
+        salaryMax: undefined,
+        stale: undefined,
+        sort: undefined,
+        dir: undefined,
+      });
+    },
+    [setSearch],
+  );
 
-  const updateFilters = useCallback((update: Partial<FilterParams>) => {
-    setFilters((prev) => ({ ...prev, ...update }));
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, []);
+  const updateFilters = useCallback(
+    (update: Partial<FilterParams>) => setSearch(update as Partial<DashboardSearch>),
+    [setSearch],
+  );
 
-  const clearFilters = useCallback(() => {
-    setFilters({});
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, []);
+  const clearFilters = useCallback(
+    () =>
+      setSearch({
+        statuses: undefined,
+        salaryDeclared: undefined,
+        salaryMin: undefined,
+        salaryMax: undefined,
+        stale: undefined,
+      }),
+    [setSearch],
+  );
 
   const {
     data: hiringProcessesData,
@@ -191,12 +282,11 @@ function HiringProcessesComponent() {
     error,
     refetch,
   } = useHiringProcesses({
-    page: pagination.pageIndex + 1,
-    limit: pagination.pageSize,
-    filters: { ...filters, scope },
-    /* Archived sorts by when it was archived; active by last update */
-    sort: scope === "archived" ? "archivedAt" : filters.stale ? "updatedAt" : undefined,
-    dir: filters.stale ? "asc" : undefined,
+    page,
+    limit,
+    filters,
+    sort: search.sort,
+    dir: search.dir,
   });
 
   /* Counts ride along with the rows, so the segments have their numbers
@@ -302,10 +392,14 @@ function HiringProcessesComponent() {
      Forces the view without touching the stored preference — it's a one-off,
      not a change of mind about how you like to look at the pipeline. */
   const showStale = useCallback(() => {
-    setView("table");
-    setFilters({ stale: true });
-    setPagination((prev) => ({ ...prev, pageIndex: 0 }));
-  }, []);
+    setSearch({
+      view: "table",
+      stale: true,
+      sort: "updatedAt",
+      dir: "asc",
+      statuses: undefined,
+    });
+  }, [setSearch]);
 
   const deleteHiringProcess = useDeleteHiringProcess();
 
@@ -548,8 +642,21 @@ function HiringProcessesComponent() {
           interviews={hiringProcesses}
           onDelete={handleDelete}
           isDeleting={deleteHiringProcess.isPending}
-          pagination={pagination}
-          onPaginationChange={setPagination}
+          pagination={{ pageIndex: page - 1, pageSize: limit }}
+          onPaginationChange={(next) =>
+            setSearch({ page: next.pageIndex + 1, limit: next.pageSize })
+          }
+          sorting={search.sort ? [{ id: search.sort, desc: search.dir === "desc" }] : []}
+          onSortingChange={(next) => {
+            /* Column ids are the sort fields by construction; the guard keeps a
+               stray id from ending up in the URL as an invalid sort. */
+            const first = next[0];
+            const field = HIRING_PROCESS_SORT_FIELD_VALUES.find((value) => value === first?.id);
+            setSearch({
+              sort: field,
+              dir: field ? (first?.desc ? "desc" : "asc") : undefined,
+            });
+          }}
           totalCount={paginationMeta?.total || 0}
           isLoading={isLoading}
           scope={scope}
