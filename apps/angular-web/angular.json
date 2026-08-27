@@ -52,6 +52,11 @@
         },
         "serve": {
           "builder": "@angular/build:dev-server",
+          "options": {
+            "prebundle": {
+              "exclude": ["@interviews-tool/domain"]
+            }
+          },
           "configurations": {
             "production": {
               "buildTarget": "angular-web:build:production"
