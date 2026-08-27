@@ -20,9 +20,13 @@ import { QuickCapture } from "./quick-capture";
       <span class="font-mono text-[13px] text-text-muted">{{ count() }} logged</span>
     </div>
 
+    @if (timelineActionError(); as message) {
+      <p class="field-error mb-4" role="alert">{{ message }}</p>
+    }
+
     <app-quick-capture
       [pending]="create.isPending()"
-      [serverError]="actionError()"
+      [serverError]="create.error()?.message ?? null"
       (log)="onLog($event)"
     />
 
@@ -56,12 +60,12 @@ export class InteractionSection {
   protected readonly update = injectUpdateInteraction();
   protected readonly remove = injectDeleteInteraction();
 
-  protected readonly actionError = computed(
-    () =>
-      this.create.error()?.message ??
-      this.update.error()?.message ??
-      this.remove.error()?.message ??
-      null,
+  /* Edit and delete are triggered from dialogs that close before their request
+     settles, so their failures have nowhere to land unless the section shows
+     them itself. Keeping them out of the composer's slot stops a failed edit
+     from reading as a failed note. */
+  protected readonly timelineActionError = computed(
+    () => this.update.error()?.message ?? this.remove.error()?.message ?? null,
   );
 
   /* Only the action just taken may show an error, and a mutation that is still

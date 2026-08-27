@@ -1,7 +1,9 @@
 import { TestBed } from "@angular/core/testing";
+import { By } from "@angular/platform-browser";
 import { QueryClient, provideTanStackQuery } from "@tanstack/angular-query-experimental";
 import { InteractionsApi } from "../../../../core/api/interactions.api";
 import type { Interaction } from "../../../../core/api/interaction.model";
+import { EditInteractionDialog } from "./edit-interaction-dialog";
 import { InteractionSection } from "./interaction-section";
 
 const PROCESS = "11111111-1111-4111-8111-111111111111";
@@ -83,5 +85,29 @@ describe("InteractionSection", () => {
       fixture.detectChanges();
       expect(fixture.nativeElement.textContent).toContain("Server said no");
     });
+  });
+
+  it("attributes an update failure to the section, not the composer", async () => {
+    const { api, fixture } = setup();
+    api.update.mockRejectedValueOnce(new Error("Edit rejected"));
+    await vi.waitFor(() => fixture.detectChanges());
+    // jsdom does not implement HTMLDialogElement.showModal/close, so the edit
+    // dialog cannot be driven open via a real click in this test environment.
+    // Emit its real `save` output directly instead — this still exercises the
+    // section's actual (save)="onSave($event)" wiring end to end from there.
+    const dialog = fixture.debugElement.query(By.directive(EditInteractionDialog))
+      .componentInstance as EditInteractionDialog;
+    dialog.save.emit({
+      interactionId: item.id,
+      body: { content: item.content, type: item.type },
+    });
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Edit rejected");
+    });
+    // The composer only ever shows its own (create) failures — an edit failure
+    // must not be attributed to it.
+    const composer = fixture.nativeElement.querySelector("app-quick-capture");
+    expect(composer?.textContent).not.toContain("Edit rejected");
   });
 });
