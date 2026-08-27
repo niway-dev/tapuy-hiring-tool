@@ -78,6 +78,7 @@ import { ArchiveDialog } from "./archive-dialog";
               <select
                 id="next-status"
                 class="input max-w-48"
+                aria-label="Move this process to another status"
                 [disabled]="changeStatus.isPending()"
                 (change)="onStatusChange($event)"
               >
@@ -158,10 +159,23 @@ export class DetailPage {
     return error instanceof Error ? error.message : "Unknown error";
   }
 
+  /**
+   * Only the action the user just took may show an error: TanStack clears a
+   * mutation's error when that same mutation reruns, never when a sibling
+   * succeeds, so a stale message would otherwise outlive the failure.
+   */
+  private resetActionErrors(): void {
+    this.changeStatus.reset();
+    this.archive.reset();
+    this.restore.reset();
+    this.remove.reset();
+  }
+
   protected onStatusChange(event: Event): void {
     const select = event.target as HTMLSelectElement;
     const status = select.value as HiringProcessStatus | "";
     if (!status) return;
+    this.resetActionErrors();
     this.changeStatus.mutate(
       { id: this.id(), status },
       {
@@ -174,15 +188,18 @@ export class DetailPage {
   }
 
   protected onArchive(reason: ArchiveReason): void {
+    this.resetActionErrors();
     this.archive.mutate({ id: this.id(), reason }, { onSuccess: () => this.process.reload() });
   }
 
   protected onRestore(): void {
+    this.resetActionErrors();
     this.restore.mutate(this.id(), { onSuccess: () => this.process.reload() });
   }
 
   protected onDelete(): void {
     if (!window.confirm("Delete this hiring process? This cannot be undone.")) return;
+    this.resetActionErrors();
     this.remove.mutate(this.id(), {
       onSuccess: () => void this.router.navigate(["/hiring-processes"]),
     });

@@ -92,4 +92,82 @@ describe("DetailPage", () => {
       expect(fixture.nativeElement.querySelector(".badge")?.textContent).toContain("Hired");
     });
   });
+
+  it("clears a stale error once a different action succeeds", async () => {
+    const archivedItem: HiringProcess = {
+      ...item,
+      archivedAt: "2026-08-20T00:00:00.000Z",
+      archiveReason: "no-reply",
+    };
+    const { ctrl, fixture } = setup();
+    await vi.waitFor(() =>
+      ctrl
+        .expectOne(`/api/v1/hiring-processes/${item.id}`)
+        .flush({ data: archivedItem, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector("select#next-status")).not.toBeNull();
+    });
+
+    // Fail a status change.
+    const select = fixture.nativeElement.querySelector("select#next-status") as HTMLSelectElement;
+    select.value = "hired";
+    select.dispatchEvent(new Event("change"));
+    const patch = await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/status`),
+    );
+    patch.flush(
+      { data: null, error: { message: "Status change failed" } },
+      { status: 500, statusText: "Server Error" },
+    );
+    // onSettled always reloads, even on failure.
+    await vi.waitFor(() =>
+      ctrl
+        .expectOne(`/api/v1/hiring-processes/${item.id}`)
+        .flush({ data: archivedItem, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".field-error")?.textContent).toContain(
+        "Status change failed",
+      );
+    });
+
+    // Now succeed at a different action: restore.
+    const restoreButton = Array.from(fixture.nativeElement.querySelectorAll("button")).find(
+      (button) => (button as HTMLButtonElement).textContent?.trim() === "Restore",
+    ) as HTMLButtonElement;
+    restoreButton.click();
+    const restore = await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/restore`),
+    );
+    expect(restore.request.method).toBe("POST");
+    const restoredItem: HiringProcess = { ...archivedItem, archivedAt: null, archiveReason: null };
+    restore.flush({ data: restoredItem, error: null });
+    await vi.waitFor(() =>
+      ctrl
+        .expectOne(`/api/v1/hiring-processes/${item.id}`)
+        .flush({ data: restoredItem, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".field-error")).toBeNull();
+    });
+    expect(fixture.nativeElement.textContent).not.toContain("Status change failed");
+  });
+
+  it("labels the status select with an accessible name", async () => {
+    const { ctrl, fixture } = setup();
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector("select#next-status")).not.toBeNull();
+    });
+    expect(fixture.nativeElement.querySelector("#next-status")?.getAttribute("aria-label")).toBe(
+      "Move this process to another status",
+    );
+  });
 });
