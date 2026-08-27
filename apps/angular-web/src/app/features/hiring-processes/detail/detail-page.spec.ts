@@ -1,7 +1,7 @@
 import { TestBed } from "@angular/core/testing";
 import { provideHttpClient, withInterceptors } from "@angular/common/http";
 import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
-import { provideRouter } from "@angular/router";
+import { Router, provideRouter } from "@angular/router";
 import { QueryClient, provideTanStackQuery } from "@tanstack/angular-query-experimental";
 import { apiErrorInterceptor } from "../../../core/http/api-error.interceptor";
 import type { HiringProcess } from "../../../core/api/hiring-process.model";
@@ -30,10 +30,12 @@ function setup() {
     ],
   });
   const ctrl = TestBed.inject(HttpTestingController);
+  const router = TestBed.inject(Router);
+  const navigate = vi.spyOn(router, "navigate").mockResolvedValue(true);
   const fixture = TestBed.createComponent(DetailPage);
   fixture.componentRef.setInput("id", item.id);
   fixture.detectChanges();
-  return { ctrl, fixture };
+  return { ctrl, fixture, navigate };
 }
 
 describe("DetailPage", () => {
@@ -169,5 +171,45 @@ describe("DetailPage", () => {
     expect(fixture.nativeElement.querySelector("#next-status")?.getAttribute("aria-label")).toBe(
       "Move this process to another status",
     );
+  });
+
+  it("still navigates away after delete even if a status change fires while the delete is in flight", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const { ctrl, fixture, navigate } = setup();
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector("select#next-status")).not.toBeNull();
+    });
+
+    // Confirm delete: the DELETE request is now in flight, but we don't flush it yet.
+    const deleteButton = Array.from(fixture.nativeElement.querySelectorAll("button")).find(
+      (button) => (button as HTMLButtonElement).textContent?.trim() === "Delete",
+    ) as HTMLButtonElement;
+    deleteButton.click();
+    const deleteReq = await vi.waitFor(() => ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`));
+    expect(deleteReq.request.method).toBe("DELETE");
+
+    // While the delete is still pending, fire a status change. Its
+    // resetActionErrors() must not detach the still in-flight `remove` mutation.
+    const select = fixture.nativeElement.querySelector("select#next-status") as HTMLSelectElement;
+    select.value = "hired";
+    select.dispatchEvent(new Event("change"));
+    const patch = await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/status`),
+    );
+    patch.flush({ data: { ...item, status: "hired" }, error: null });
+    // onSettled reloads the detail.
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+
+    // Now the delete finally settles.
+    deleteReq.flush(null, { status: 204, statusText: "No Content" });
+    await vi.waitFor(() => {
+      expect(navigate).toHaveBeenCalledWith(["/hiring-processes"]);
+    });
   });
 });

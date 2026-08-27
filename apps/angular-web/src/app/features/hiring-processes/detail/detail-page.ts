@@ -163,12 +163,15 @@ export class DetailPage {
    * Only the action the user just took may show an error: TanStack clears a
    * mutation's error when that same mutation reruns, never when a sibling
    * succeeds, so a stale message would otherwise outlive the failure.
+   * Pending mutations are skipped: reset() detaches the observer from an
+   * in-flight mutation, which would drop its onSuccess/onSettled callback
+   * (e.g. a delete's navigation) when the response finally arrives.
    */
   private resetActionErrors(): void {
-    this.changeStatus.reset();
-    this.archive.reset();
-    this.restore.reset();
-    this.remove.reset();
+    if (!this.changeStatus.isPending()) this.changeStatus.reset();
+    if (!this.archive.isPending()) this.archive.reset();
+    if (!this.restore.isPending()) this.restore.reset();
+    if (!this.remove.isPending()) this.remove.reset();
   }
 
   protected onStatusChange(event: Event): void {
