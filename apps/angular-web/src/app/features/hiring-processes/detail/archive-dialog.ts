@@ -15,9 +15,14 @@ const REASON_LABEL: Record<ArchiveReason, string> = {
       <h2 class="mb-2 text-base font-semibold">Archive this process?</h2>
       <p class="mb-4 text-sm text-text-muted">It leaves the active list but keeps its status and history.</p>
       <label class="label" for="archive-reason">Reason</label>
-      <select id="archive-reason" class="input mb-4" [value]="reason()" (change)="onReason($event)">
+      <!-- [selected] lives on each option, not [value] on the select: Angular emits
+           the select's property instruction before the @for creates its options, so
+           [value] would bind before any option exists and the assignment would be
+           discarded. Only works today because "no-reply" happens to be the first
+           option; fixed proactively so a change to the default doesn't silently break it. -->
+      <select id="archive-reason" class="input mb-4" (change)="onReason($event)">
         @for (r of reasons; track r) {
-          <option [value]="r">{{ labels[r] }}</option>
+          <option [value]="r" [selected]="r === reason()">{{ labels[r] }}</option>
         }
       </select>
       <div class="flex justify-end gap-2">

@@ -81,6 +81,18 @@ describe("ListPage", () => {
     });
   });
 
+  it("shows the status already in the URL as selected in the dropdown", async () => {
+    const { fixture } = setup([item]);
+    fixture.componentRef.setInput("status", "hired");
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const select = fixture.nativeElement.querySelector("select#status") as HTMLSelectElement;
+    expect(select.value).toBe("hired");
+    const selectedOption = select.querySelector("option:checked") as HTMLOptionElement;
+    expect(selectedOption.value).toBe("hired");
+  });
+
   it("writes filter changes to the URL and resets the page", async () => {
     const { fixture, navigate } = setup([item]);
     fixture.detectChanges();

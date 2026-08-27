@@ -67,6 +67,31 @@ describe("HiringProcessesApi", () => {
     expect((await pending).items).toEqual([]);
   });
 
+  it("list() sends salaryDeclared: false as the string 'false' rather than dropping it", async () => {
+    const pending = api.list({ page: 1, limit: 10, salaryDeclared: false });
+    const req = ctrl.expectOne((r) => r.url === "/api/v1/hiring-processes");
+    expect(req.request.params.has("salaryDeclared")).toBe(true);
+    expect(req.request.params.get("salaryDeclared")).toBe("false");
+    req.flush({
+      data: [],
+      error: null,
+      meta: { pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } },
+    });
+    await pending;
+  });
+
+  it("list() omits the statuses key entirely when statuses is an empty array", async () => {
+    const pending = api.list({ page: 1, limit: 10, statuses: [] });
+    const req = ctrl.expectOne((r) => r.url === "/api/v1/hiring-processes");
+    expect(req.request.params.has("statuses")).toBe(false);
+    req.flush({
+      data: [],
+      error: null,
+      meta: { pagination: { page: 1, limit: 10, total: 0, totalPages: 0 } },
+    });
+    await pending;
+  });
+
   it("get() unwraps data", async () => {
     const pending = api.get(item.id);
     ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null });
@@ -90,33 +115,51 @@ describe("HiringProcessesApi", () => {
     expect((await pending).companyName).toBe("Acme 2");
   });
 
-  it("changeStatus() PATCHes /status", async () => {
+  it("changeStatus() PATCHes /status and returns the updated process from the { process, previous } envelope", async () => {
     const pending = api.changeStatus(item.id, "hired");
     const req = ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/status`);
     expect(req.request.method).toBe("PATCH");
     expect(req.request.body).toEqual({ status: "hired" });
-    req.flush({ data: { ...item, status: "hired" }, error: null });
-    expect((await pending).status).toBe("hired");
+    req.flush({
+      data: {
+        process: { ...item, status: "hired" },
+        previous: { status: "ongoing" },
+      },
+      error: null,
+    });
+    const result = await pending;
+    expect(result).toEqual({ ...item, status: "hired" });
   });
 
-  it("archive() POSTs /archive with a reason", async () => {
+  it("archive() POSTs /archive with a reason and returns the updated process from the { process, previous } envelope", async () => {
     const pending = api.archive(item.id, "no-reply");
     const req = ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/archive`);
     expect(req.request.method).toBe("POST");
     expect(req.request.body).toEqual({ reason: "no-reply" });
     req.flush({
-      data: { ...item, archivedAt: "2026-08-26T00:00:00.000Z", archiveReason: "no-reply" },
+      data: {
+        process: { ...item, archivedAt: "2026-08-26T00:00:00.000Z", archiveReason: "no-reply" },
+        previous: { archivedAt: null, archiveReason: null },
+      },
       error: null,
     });
-    expect((await pending).archiveReason).toBe("no-reply");
+    const result = await pending;
+    expect(result.archiveReason).toBe("no-reply");
   });
 
-  it("restore() POSTs /restore", async () => {
+  it("restore() POSTs /restore and returns the updated process from the { process, previous } envelope", async () => {
     const pending = api.restore(item.id);
     const req = ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/restore`);
     expect(req.request.method).toBe("POST");
-    req.flush({ data: item, error: null });
-    expect(await pending).toEqual(item);
+    req.flush({
+      data: {
+        process: item,
+        previous: { archivedAt: "2026-08-20T00:00:00.000Z", archiveReason: "no-reply" },
+      },
+      error: null,
+    });
+    const result = await pending;
+    expect(result).toEqual(item);
   });
 
   it("delete() sends DELETE and resolves on 204", async () => {

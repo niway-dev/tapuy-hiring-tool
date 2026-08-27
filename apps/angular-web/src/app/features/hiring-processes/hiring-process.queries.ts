@@ -30,14 +30,14 @@ export function injectHiringProcess(id: () => string | undefined) {
   });
 }
 
-function useInvalidateAll() {
+function injectInvalidateAll() {
   const queryClient = injectQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all });
 }
 
 export function injectCreateHiringProcess() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (body: CreateHiringProcess) => api.create(body),
     onSuccess: invalidate,
@@ -46,7 +46,7 @@ export function injectCreateHiringProcess() {
 
 export function injectUpdateHiringProcess() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (input: { id: string; body: UpdateHiringProcess }) =>
       api.update(input.id, input.body),
@@ -56,7 +56,7 @@ export function injectUpdateHiringProcess() {
 
 export function injectChangeHiringProcessStatus() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (input: { id: string; status: HiringProcessStatus }) =>
       api.changeStatus(input.id, input.status),
@@ -66,7 +66,7 @@ export function injectChangeHiringProcessStatus() {
 
 export function injectArchiveHiringProcess() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (input: { id: string; reason: ArchiveReason }) =>
       api.archive(input.id, input.reason),
@@ -76,7 +76,7 @@ export function injectArchiveHiringProcess() {
 
 export function injectRestoreHiringProcess() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (id: string) => api.restore(id),
     onSuccess: invalidate,
@@ -85,7 +85,7 @@ export function injectRestoreHiringProcess() {
 
 export function injectDeleteHiringProcess() {
   const api = inject(HiringProcessesApi);
-  const invalidate = useInvalidateAll();
+  const invalidate = injectInvalidateAll();
   return injectMutation(() => ({
     mutationFn: (id: string) => api.delete(id),
     onSuccess: invalidate,

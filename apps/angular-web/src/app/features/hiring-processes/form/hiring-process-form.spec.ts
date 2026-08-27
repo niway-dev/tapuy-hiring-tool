@@ -88,6 +88,28 @@ describe("HiringProcessForm", () => {
     expect((fixture.nativeElement.querySelector("#salary") as HTMLInputElement).value).toBe("2000");
   });
 
+  it("surfaces a Zod issue on a field with no error slot instead of silently blocking submit", () => {
+    // Only companyName and salary have a rendered error slot (errorOf()). The
+    // <select> for status only ever offers real enum values, so the UI can't
+    // produce an invalid one on its own — we set the FormControl directly to
+    // bypass that and trigger a genuine Zod issue on a field errorOf() does
+    // not cover, exercising the same setErrors()-on-an-unread-control path a
+    // future schema change on jobTitle/currency/salaryRateType would hit.
+    const { fixture, saved } = setup();
+    set(fixture, "companyName", "Acme");
+    (
+      fixture.componentInstance as unknown as {
+        form: { controls: { status: { setValue: (v: string) => void } } };
+      }
+    ).form.controls.status.setValue("not-a-real-status");
+    submitForm(fixture);
+
+    expect(saved).toHaveLength(0);
+    const alert = fixture.nativeElement.querySelector('[role="alert"]');
+    expect(alert).not.toBeNull();
+    expect(alert?.textContent?.trim().length).toBeGreaterThan(0);
+  });
+
   it("keeps an in-progress edit when initial changes again (e.g. a background refetch)", () => {
     const first: HiringProcess = {
       id: "11111111-1111-4111-8111-111111111111",

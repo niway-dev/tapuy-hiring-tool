@@ -1,4 +1,4 @@
-import { Component, effect, inject, input, output } from "@angular/core";
+import { Component, computed, effect, inject, input, output, signal } from "@angular/core";
 import { FormBuilder, ReactiveFormsModule, Validators } from "@angular/forms";
 import {
   CURRENCY_VALUES,
@@ -69,8 +69,8 @@ import type { HiringProcess } from "../../../core/api/hiring-process.model";
         </div>
       </div>
 
-      @if (serverError()) {
-        <p class="field-error" role="alert">{{ serverError() }}</p>
+      @if (formError(); as message) {
+        <p class="field-error" role="alert">{{ message }}</p>
       }
 
       <div class="flex justify-end gap-2">
@@ -95,6 +95,18 @@ export class HiringProcessForm {
   protected readonly statusInfo = HIRING_PROCESS_STATUS_INFO;
   protected readonly currencies = CURRENCY_VALUES;
   protected readonly rateTypes = SALARY_RATE_TYPE_VALUES;
+
+  // Zod issues for fields with no rendered error slot (only companyName/salary
+  // have one — see errorOf()). Without this, a Zod issue on e.g. jobTitle,
+  // status, currency or salaryRateType would call setErrors() on a control
+  // nothing reads, silently blocking submit with no visible reason.
+  protected readonly unmappedErrors = signal<string[]>([]);
+  protected readonly formError = computed(() => {
+    const parts = [this.serverError(), ...this.unmappedErrors()].filter(
+      (value): value is string => !!value,
+    );
+    return parts.length > 0 ? parts.join(" ") : null;
+  });
 
   protected readonly form = this.fb.group({
     companyName: ["", [Validators.required]],
@@ -140,6 +152,7 @@ export class HiringProcessForm {
   }
 
   protected onSubmit(): void {
+    this.unmappedErrors.set([]);
     this.form.markAllAsTouched();
     if (this.form.invalid) return;
 
@@ -157,13 +170,19 @@ export class HiringProcessForm {
     // Same schema the server validates with — errors land on the matching control.
     const parsed = createHiringProcessSchema.safeParse(candidate);
     if (!parsed.success) {
+      const unmapped: string[] = [];
       for (const issue of parsed.error.issues) {
         const key = issue.path[0] as keyof typeof this.form.controls | undefined;
-        if (key && key in this.form.controls) {
+        // Only companyName and salary have a rendered error slot (errorOf()).
+        // Anything else must not vanish into a control nobody reads.
+        if (key === "companyName" || key === "salary") {
           this.form.controls[key].setErrors({ zod: issue.message });
           this.form.controls[key].markAsTouched();
+        } else {
+          unmapped.push(issue.message);
         }
       }
+      this.unmappedErrors.set(unmapped);
       return;
     }
     this.save.emit(parsed.data);

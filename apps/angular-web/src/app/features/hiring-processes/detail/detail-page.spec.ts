@@ -95,6 +95,42 @@ describe("DetailPage", () => {
     });
   });
 
+  it("keeps the loaded content mounted (no spinner) while a reload after an action is in flight", async () => {
+    const { ctrl, fixture } = setup();
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Acme");
+    });
+
+    const select = fixture.nativeElement.querySelector("select#next-status") as HTMLSelectElement;
+    select.value = "hired";
+    select.dispatchEvent(new Event("change"));
+    const patch = await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}/status`),
+    );
+    patch.flush({
+      data: { process: { ...item, status: "hired" }, previous: { status: "ongoing" } },
+      error: null,
+    });
+
+    // The status PATCH settled and onSettled triggered process.reload(): the
+    // reload GET is now in flight, but not flushed yet. While it is pending,
+    // the previously-loaded content must stay mounted — no spinner flash.
+    const reloadReq = await vi.waitFor(() => ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`));
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("Acme");
+    expect(fixture.nativeElement.querySelector("app-spinner")).toBeNull();
+
+    reloadReq.flush({ data: { ...item, status: "hired" }, error: null });
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelector(".badge")?.textContent).toContain("Hired");
+    });
+  });
+
   it("clears a stale error once a different action succeeds", async () => {
     const archivedItem: HiringProcess = {
       ...item,

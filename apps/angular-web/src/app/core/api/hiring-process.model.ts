@@ -36,3 +36,19 @@ export interface HiringProcessListResult {
   items: HiringProcess[];
   pagination: PaginationMeta;
 }
+
+/**
+ * The status/archive/restore endpoints return the updated process plus the
+ * fields as they were before the change, so a caller can offer an undo.
+ */
+export interface HiringProcessTransition<TPrevious> {
+  process: HiringProcess;
+  previous: TPrevious;
+}
+
+export type StatusTransition = HiringProcessTransition<{ status: HiringProcessStatus }>;
+
+export type ArchiveTransition = HiringProcessTransition<{
+  archivedAt: string | null;
+  archiveReason: ArchiveReason | null;
+}>;

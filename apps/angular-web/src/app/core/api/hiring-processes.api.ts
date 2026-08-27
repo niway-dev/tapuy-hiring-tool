@@ -6,9 +6,11 @@ import type { ApiResponse } from "@interviews-tool/domain/types";
 import type { Observable } from "rxjs";
 import { firstValueFrom } from "rxjs";
 import type {
+  ArchiveTransition,
   HiringProcess,
   HiringProcessListParams,
   HiringProcessListResult,
+  StatusTransition,
 } from "./hiring-process.model";
 
 const BASE = "/api/v1/hiring-processes";
@@ -50,20 +52,29 @@ export class HiringProcessesApi {
     return this.unwrap(this.http.put<ApiResponse<HiringProcess>>(`${BASE}/${id}`, body));
   }
 
-  changeStatus(id: string, status: HiringProcessStatus): Promise<HiringProcess> {
-    return this.unwrap(
-      this.http.patch<ApiResponse<HiringProcess>>(`${BASE}/${id}/status`, { status }),
+  // The server returns { process, previous } (an undo-friendly envelope), not
+  // the process directly. No call site needs `previous` yet, so the public
+  // return type stays Promise<HiringProcess> and we take `.process` off the
+  // unwrapped transition here rather than lying about the wire shape.
+  async changeStatus(id: string, status: HiringProcessStatus): Promise<HiringProcess> {
+    const transition = await this.unwrap(
+      this.http.patch<ApiResponse<StatusTransition>>(`${BASE}/${id}/status`, { status }),
     );
+    return transition.process;
   }
 
-  archive(id: string, reason: ArchiveReason): Promise<HiringProcess> {
-    return this.unwrap(
-      this.http.post<ApiResponse<HiringProcess>>(`${BASE}/${id}/archive`, { reason }),
+  async archive(id: string, reason: ArchiveReason): Promise<HiringProcess> {
+    const transition = await this.unwrap(
+      this.http.post<ApiResponse<ArchiveTransition>>(`${BASE}/${id}/archive`, { reason }),
     );
+    return transition.process;
   }
 
-  restore(id: string): Promise<HiringProcess> {
-    return this.unwrap(this.http.post<ApiResponse<HiringProcess>>(`${BASE}/${id}/restore`, {}));
+  async restore(id: string): Promise<HiringProcess> {
+    const transition = await this.unwrap(
+      this.http.post<ApiResponse<ArchiveTransition>>(`${BASE}/${id}/restore`, {}),
+    );
+    return transition.process;
   }
 
   async delete(id: string): Promise<void> {

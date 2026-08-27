@@ -16,10 +16,14 @@ export interface ListFilterValues {
     <div class="flex flex-wrap items-end gap-4">
       <div>
         <label class="label" for="status">Status</label>
-        <select id="status" class="input min-w-44" [value]="status() ?? ''" (change)="onStatus($event)">
-          <option value="">All statuses</option>
+        <!-- [selected] lives on each option, not [value] on the select: Angular emits
+             the select's property instruction before the @for creates its options, so
+             on first render [value] would be applied while only "All statuses" exists
+             and the assignment gets discarded (and never re-applied afterwards). -->
+        <select id="status" class="input min-w-44" (change)="onStatus($event)">
+          <option value="" [selected]="!status()">All statuses</option>
           @for (s of statuses; track s) {
-            <option [value]="s">{{ info[s].label }}</option>
+            <option [value]="s" [selected]="s === status()">{{ info[s].label }}</option>
           }
         </select>
       </div>

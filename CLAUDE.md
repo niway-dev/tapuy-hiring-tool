@@ -51,3 +51,7 @@ Infrastructure packages use the `infra-*` naming convention to make architectura
 - `infra-*` never imports from `application`
 - Mobile app (`apps/mobile/`) only imports from `@interviews-tool/domain`
 - Angular app (`apps/angular-web/`) only imports from `@interviews-tool/domain` — never `application`, `infra-*`, or `web-ui`
+
+## Node version
+
+`apps/angular-web` runs the Angular 22 CLI: repo requires Node `>= 22.22.3` or `>= 24.15.0`. Below that, root `build`/`test`/`dev` fail.

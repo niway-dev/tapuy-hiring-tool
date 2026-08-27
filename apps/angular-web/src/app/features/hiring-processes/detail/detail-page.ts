@@ -35,7 +35,12 @@ import { ArchiveDialog } from "./archive-dialog";
     ArchiveDialog,
   ],
   template: `
-    @if (process.isLoading()) {
+    <!-- Guarded with !process.hasValue(): resource.isLoading() is also true during a
+         reload (status 'reloading'), and every action here calls process.reload(), so
+         gating on isLoading() alone would tear down the whole loaded view — heading,
+         actions, status card, error message, dialog — into a spinner on every action.
+         Only show the spinner when there is truly nothing loaded yet. -->
+    @if (process.isLoading() && !process.hasValue()) {
       <div class="flex justify-center py-10"><app-spinner /></div>
     } @else if (process.error(); as error) {
       <app-empty-state
