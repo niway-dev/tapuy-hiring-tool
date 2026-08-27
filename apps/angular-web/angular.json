@@ -55,7 +55,7 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "prebundle": {
-              "exclude": ["@interviews-tool/domain"]
+              "exclude": ["@interviews-tool/domain", "@interviews-tool/ui-markdown"]
             }
           },
           "configurations": {

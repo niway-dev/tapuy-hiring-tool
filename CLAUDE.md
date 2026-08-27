@@ -50,7 +50,8 @@ Infrastructure packages use the `infra-*` naming convention to make architectura
 - `application` never imports from `infra-*` (uses domain interfaces)
 - `infra-*` never imports from `application`
 - Mobile app (`apps/mobile/`) only imports from `@interviews-tool/domain`
-- Angular app (`apps/angular-web/`) only imports from `@interviews-tool/domain` — never `application`, `infra-*`, or `web-ui`
+- Angular app (`apps/angular-web/`) only imports from `@interviews-tool/domain` and `@interviews-tool/ui-markdown` — never `application`, `infra-*`, or `web-ui`
+- `ui-markdown` is pure presentation logic: no React, no Angular, no DOM
 
 ## Node version
 
