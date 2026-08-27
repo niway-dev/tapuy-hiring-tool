@@ -5,9 +5,22 @@ and talks to the same `apps/server` API through a dev proxy.
 
 ## Run
 
+**One-time setup:** add this client's origin to the API's `CORS_ORIGIN`, or every
+sign-in from the browser fails with `Invalid origin` (HTTP 403). Better Auth
+validates the `Origin` header against that list, so `:4200` has to be in it:
+
+```
+# apps/server/.env
+CORS_ORIGIN=http://localhost:3001,http://localhost:4200
+```
+
+Note this only bites in a real browser — `curl` sends neither a cookie nor the
+`Sec-Fetch-*` headers that trigger the check, so the endpoint answers 200 from a
+terminal while the app cannot log in.
+
 ```bash
-# once: Angular 22 needs Node >= 24.15
-source ~/.nvm/nvm.sh && nvm use 24
+# Node: the repo pins 22.23.2 in the root .nvmrc, which satisfies the Angular CLI
+source ~/.nvm/nvm.sh && nvm use
 
 # terminal 1 — API on :3000
 bun run dev:server
