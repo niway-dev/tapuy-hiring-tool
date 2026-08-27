@@ -1,4 +1,4 @@
-import { Component, computed, input, output, viewChild } from "@angular/core";
+import { Component, computed, input, viewChild } from "@angular/core";
 import type { UpdateInteraction } from "@interviews-tool/domain/schemas";
 import {
   injectCreateInteraction,
@@ -42,9 +42,8 @@ import { QuickCapture } from "./quick-capture";
 })
 export class InteractionSection {
   readonly hiringProcessId = input.required<string>();
-  /** Fires after any successful mutation so the detail page can refresh Last updated. */
-  readonly changed = output<void>();
 
+  protected readonly composer = viewChild.required(QuickCapture);
   protected readonly editDialog = viewChild.required(EditInteractionDialog);
   protected readonly deleteDialog = viewChild.required(DeleteInteractionDialog);
 
@@ -81,7 +80,7 @@ export class InteractionSection {
     this.resetActionErrors();
     this.create.mutate(
       { hiringProcessId: this.hiringProcessId(), body: { content, type: "note" } },
-      { onSuccess: () => this.changed.emit() },
+      { onSuccess: () => this.composer().clear() },
     );
   }
 
@@ -93,15 +92,12 @@ export class InteractionSection {
         interactionId: event.interactionId,
         body: event.body,
       },
-      { onSuccess: () => this.changed.emit() },
+      { onSuccess: () => this.editDialog().close() },
     );
   }
 
   protected onDelete(interactionId: string): void {
     this.resetActionErrors();
-    this.remove.mutate(
-      { hiringProcessId: this.hiringProcessId(), interactionId },
-      { onSuccess: () => this.changed.emit() },
-    );
+    this.remove.mutate({ hiringProcessId: this.hiringProcessId(), interactionId });
   }
 }

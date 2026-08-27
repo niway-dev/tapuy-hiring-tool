@@ -5,8 +5,10 @@ import { Marked } from "marked";
 /* One parser instance for the whole app: constructing Marked per render is
    wasteful, and the options must not drift between call sites. GFM is on so
    task lists, tables and strikethrough match what react-markdown renders in
-   apps/web via remark-gfm. */
-const marked = new Marked({ gfm: true, breaks: true }).use({
+   apps/web via remark-gfm. `breaks` is deliberately left off (its default is
+   false): react-markdown does not enable it either, so a single newline
+   renders as a space (CommonMark), not a <br>. */
+const marked = new Marked({ gfm: true }).use({
   renderer: {
     /* Angular's sanitizer drops <input> outright, so a GFM task list would lose
        its box. Emitting an inert span keeps the visual parity with apps/web

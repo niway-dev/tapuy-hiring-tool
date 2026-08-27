@@ -111,6 +111,7 @@ export class EditInteractionDialog {
       // title is optional in the schema; send it only when there is one.
       body: { content, type: this.type(), ...(title ? { title } : {}) },
     });
-    this.close();
+    // Closing happens in the owning section's onSuccess, not here: a failed
+    // update must leave the dialog open with the edit still in it.
   }
 }

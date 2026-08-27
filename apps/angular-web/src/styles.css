@@ -60,6 +60,7 @@
   --color-mint-on: var(--mint-on);
   --color-fuchsia: var(--fuchsia);
   --color-danger: var(--danger);
+  --color-status-rejected-bg: var(--st-rejected-bg);
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 }

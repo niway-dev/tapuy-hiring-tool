@@ -60,6 +60,12 @@ export class QuickCapture {
       return;
     }
     this.log.emit(content);
+  }
+
+  /** Called by the owning section once the mutation actually succeeds — a
+      failed create must leave the typed note in the field, so clearing does
+      not happen inside submit(). */
+  clear(): void {
     this.text.set("");
     this.tooShort.set(false);
   }

@@ -47,10 +47,8 @@ describe("InteractionSection", () => {
     });
   });
 
-  it("creates a note from the quick composer and emits changed", async () => {
+  it("creates a note from the quick composer and clears it on success", async () => {
     const { api, fixture } = setup();
-    const changes: void[] = [];
-    fixture.componentInstance.changed.subscribe(() => changes.push(undefined));
     await vi.waitFor(() => {
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector("input")).not.toBeNull();
@@ -66,7 +64,10 @@ describe("InteractionSection", () => {
         type: "note",
       }),
     );
-    await vi.waitFor(() => expect(changes.length).toBeGreaterThan(0));
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect((fixture.nativeElement.querySelector("input") as HTMLInputElement).value).toBe("");
+    });
   });
 
   it("surfaces a create failure without losing the section", async () => {

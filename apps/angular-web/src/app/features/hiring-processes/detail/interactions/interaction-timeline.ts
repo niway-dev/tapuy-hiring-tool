@@ -8,7 +8,7 @@ import { InteractionCard } from "./interaction-card";
    the same rule the React timeline uses. */
 function nodeClass(type: Interaction["type"]): string {
   if (type === "offer") return "bg-fuchsia";
-  if (type === "rejection") return "bg-danger";
+  if (type === "rejection") return "bg-status-rejected-bg";
   return "bg-text-muted";
 }
 

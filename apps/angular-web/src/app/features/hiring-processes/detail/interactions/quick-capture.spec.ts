@@ -51,13 +51,29 @@ describe("QuickCapture", () => {
     expect(logged).toHaveLength(0);
   });
 
-  it("clears the field after a successful emit", () => {
+  it("does not clear the field on emit -- clearing is the owning section's job, only after the mutation succeeds", () => {
     const { fixture, input } = setup();
     type(input, "Recruiter called about the role");
     fixture.detectChanges();
     (fixture.nativeElement.querySelector("button") as HTMLButtonElement).click();
     fixture.detectChanges();
+    expect((fixture.nativeElement.querySelector("input") as HTMLInputElement).value).toBe(
+      "Recruiter called about the role",
+    );
+  });
+
+  it("clear() empties the field and resets the too-short state", () => {
+    const { fixture, input } = setup();
+    type(input, "called");
+    fixture.detectChanges();
+    (fixture.nativeElement.querySelector("button") as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.textContent).toContain("at least 10 characters");
+
+    fixture.componentInstance.clear();
+    fixture.detectChanges();
     expect((fixture.nativeElement.querySelector("input") as HTMLInputElement).value).toBe("");
+    expect(fixture.nativeElement.textContent).not.toContain("at least 10 characters");
   });
 
   it("shows a server error passed in from the parent", () => {

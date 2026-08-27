@@ -119,7 +119,7 @@ import { ProcessStats } from "./process-stats";
         }
       </section>
 
-      <app-interaction-section [hiringProcessId]="id()" (changed)="process.reload()" />
+      <app-interaction-section [hiringProcessId]="id()" />
 
       <app-archive-dialog (confirm)="onArchive($event)" />
     }
