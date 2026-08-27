@@ -19,6 +19,11 @@ A modern web application for tracking job interviews and managing hiring process
 - Node.js 18+ (if not using Bun)
 - [dotenvx](https://dotenvx.com) CLI installed globally — used to sync environment variables (`curl -sfS https://dotenvx.sh | sh` or `brew install dotenvx/brew/dotenvx`)
 
+> **Node version note**: `apps/angular-web` runs the Angular 22 CLI, which requires Node
+> `>= 22.22.3` or `>= 24.15.0`. `nvm install 22 --lts` (currently 22.23.2) or `nvm use 24`
+> both satisfy it. On an older Node, the root `build`, `test` and `dev` scripts fan out
+> through turbo into `angular-web` and will fail with the CLI's version error.
+
 ### Installation
 
 1. Clone the repository:
@@ -75,6 +80,7 @@ hiring-tool/
 │   ├── web/              # Frontend application (React + TanStack Start)
 │   ├── server/           # Backend API (Elysia)
 │   ├── mobile/           # Mobile application (React Native + Expo)
+│   ├── angular-web/      # Angular 22 client showcase (talks to the same API)
 │   └── fumadocs/         # Documentation site
 ├── packages/
 │   ├── domain/           # Domain layer — constants, schemas, types, interfaces (pure, mobile-safe)
@@ -97,6 +103,7 @@ The codebase follows **DDD + Hexagonal Architecture** with a layer-first package
 - `bun run dev:web` - Start only the web application
 - `bun run dev:server` - Start only the server
 - `bun run dev:native` - Start only the mobile application (Expo)
+- `bun run dev:angular` - Start only the Angular client (`apps/angular-web`)
 
 ### Building
 

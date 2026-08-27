@@ -1,0 +1,205 @@
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
+@import "tailwindcss";
+
+/* Tapuy tokens (dark is the default) — copied from packages/web-ui/src/styles.css */
+:root {
+  --mint: #00ffc2;
+  --mint-hover: #33ffd0;
+  --mint-on: #04261d;
+  --bg: #0a0f14;
+  --surface: #0f161d;
+  --surface-2: #141c25;
+  --selected: #0f1a1a;
+  --border: #1c232b;
+  --border-strong: #2a3440;
+  --text: #e6ebf0;
+  --text-secondary: #a7b1bc;
+  --text-muted: #6b7785;
+  --danger: #e05252;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--mint);
+
+  --st-first-contact-bg: #1b0f33;
+  --st-first-contact-text: #c9a6ff;
+  --st-first-contact-border: #4a1f8a;
+  --st-ongoing-bg: #0e1f38;
+  --st-ongoing-text: #8fc1f5;
+  --st-ongoing-border: #1f4b82;
+  --st-on-hold-bg: #2a1e08;
+  --st-on-hold-text: #f0c061;
+  --st-on-hold-border: #7a5a18;
+  --st-offer-made-bg: #2e0a22;
+  --st-offer-made-text: #ff6bc6;
+  --st-offer-made-border: #8a0a5a;
+  --st-offer-accepted-bg: #2fa155;
+  --st-offer-accepted-text: #04200d;
+  --st-hired-bg: #1e7a3e;
+  --st-hired-text: #e6f7ec;
+  --st-rejected-bg: #c73a3a;
+  --st-rejected-text: #fdecec;
+  --st-dropped-out-bg: #4a5562;
+  --st-dropped-out-text: #eef2f5;
+
+  color-scheme: dark;
+}
+
+/* Expose tokens as Tailwind utilities: bg-surface, text-text-muted, border-border, ... */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-selected: var(--selected);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-mint: var(--mint);
+  --color-mint-hover: var(--mint-hover);
+  --color-mint-on: var(--mint-on);
+  --color-danger: var(--danger);
+  --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, monospace;
+}
+
+@layer base {
+  body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  a {
+    color: inherit;
+  }
+}
+
+@layer components {
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    transition:
+      background-color 120ms ease,
+      border-color 120ms ease;
+    cursor: pointer;
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+  .btn:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+  .btn-primary {
+    background: var(--mint);
+    color: var(--mint-on);
+  }
+  .btn-primary:hover {
+    background: var(--mint-hover);
+  }
+  .btn-secondary {
+    background: var(--surface-2);
+    color: var(--text);
+    border-color: var(--border);
+  }
+  .btn-secondary:hover {
+    border-color: var(--border-strong);
+  }
+  .btn-danger {
+    background: var(--danger);
+    color: #fff;
+  }
+
+  .input {
+    width: 100%;
+    border-radius: 0.375rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+  }
+  .input::placeholder {
+    color: var(--text-muted);
+  }
+  .input:focus {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+  .input[aria-invalid="true"] {
+    border-color: var(--danger);
+  }
+
+  .label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+  .field-error {
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--danger);
+  }
+  .card {
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    padding: 1rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 9999px;
+    padding: 0.125rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    border: 1px solid transparent;
+    white-space: nowrap;
+  }
+  .badge[data-status="first-contact"] {
+    background: var(--st-first-contact-bg);
+    color: var(--st-first-contact-text);
+    border-color: var(--st-first-contact-border);
+  }
+  .badge[data-status="ongoing"] {
+    background: var(--st-ongoing-bg);
+    color: var(--st-ongoing-text);
+    border-color: var(--st-ongoing-border);
+  }
+  .badge[data-status="on-hold"] {
+    background: var(--st-on-hold-bg);
+    color: var(--st-on-hold-text);
+    border-color: var(--st-on-hold-border);
+  }
+  .badge[data-status="offer-made"] {
+    background: var(--st-offer-made-bg);
+    color: var(--st-offer-made-text);
+    border-color: var(--st-offer-made-border);
+  }
+  .badge[data-status="offer-accepted"] {
+    background: var(--st-offer-accepted-bg);
+    color: var(--st-offer-accepted-text);
+  }
+  .badge[data-status="hired"] {
+    background: var(--st-hired-bg);
+    color: var(--st-hired-text);
+  }
+  .badge[data-status="rejected"] {
+    background: var(--st-rejected-bg);
+    color: var(--st-rejected-text);
+  }
+  .badge[data-status="dropped-out"] {
+    background: var(--st-dropped-out-bg);
+    color: var(--st-dropped-out-text);
+  }
+}
