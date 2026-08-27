@@ -41,6 +41,7 @@
     "dev:native": "turbo run dev -F native",
     "dev:web": "turbo run dev -F web",
     "dev:server": "turbo run dev -F server",
+    "dev:angular": "turbo run dev -F angular-web",
     "db:push": "dotenvx run -f apps/server/.env -- turbo run db:push -F @interviews-tool/infra-db",
     "db:studio": "dotenvx run -f apps/server/.env -- turbo run db:studio -F @interviews-tool/infra-db",
     "db:generate": "dotenvx run -f apps/server/.env -- turbo run db:generate -F @interviews-tool/infra-db",
