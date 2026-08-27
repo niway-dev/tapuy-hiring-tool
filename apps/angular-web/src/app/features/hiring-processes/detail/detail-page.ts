@@ -10,8 +10,7 @@ import {
 import type { ApiResponse } from "@interviews-tool/domain/types";
 import type { HiringProcess } from "../../../core/api/hiring-process.model";
 import { ApiError } from "../../../core/http/api-error";
-import { MoneyPipe } from "../../../shared/pipes/money.pipe";
-import { RelativeDatePipe } from "../../../shared/pipes/relative-date.pipe";
+import { AbsoluteDatePipe } from "../../../shared/pipes/absolute-date.pipe";
 import { EmptyState } from "../../../shared/ui/empty-state";
 import { Spinner } from "../../../shared/ui/spinner";
 import { StatusBadge } from "../../../shared/ui/status-badge";
@@ -21,7 +20,10 @@ import {
   injectDeleteHiringProcess,
   injectRestoreHiringProcess,
 } from "../hiring-process.queries";
+import { injectInteractionList } from "../interaction.queries";
 import { ArchiveDialog } from "./archive-dialog";
+import { InteractionSection } from "./interactions/interaction-section";
+import { ProcessStats } from "./process-stats";
 
 @Component({
   selector: "app-detail-page",
@@ -30,9 +32,10 @@ import { ArchiveDialog } from "./archive-dialog";
     StatusBadge,
     EmptyState,
     Spinner,
-    MoneyPipe,
-    RelativeDatePipe,
+    AbsoluteDatePipe,
     ArchiveDialog,
+    ProcessStats,
+    InteractionSection,
   ],
   template: `
     <!-- Guarded with !process.hasValue(): resource.isLoading() is also true during a
@@ -53,67 +56,70 @@ import { ArchiveDialog } from "./archive-dialog";
         }
       </app-empty-state>
     } @else if (process.hasValue()) {
-      <div class="mb-4 flex items-start justify-between gap-4">
-        <div>
-          <a routerLink="/hiring-processes" class="text-xs text-text-muted hover:underline">← All processes</a>
-          <h1 class="mt-1 text-2xl font-semibold">{{ process.value().companyName }}</h1>
-          <p class="text-text-secondary">{{ process.value().jobTitle || "No job title" }}</p>
-        </div>
-        <div class="flex gap-2">
-          <a [routerLink]="['/hiring-processes', id(), 'edit']" class="btn btn-secondary">Edit</a>
-          @if (process.value().archivedAt) {
-            <button type="button" class="btn btn-primary" [disabled]="restore.isPending()" (click)="onRestore()">
-              Restore
-            </button>
-          } @else {
-            <button type="button" class="btn btn-secondary" (click)="archiveDialog().open()">Archive</button>
-          }
-          <button type="button" class="btn btn-danger" [disabled]="remove.isPending()" (click)="onDelete()">
-            Delete
-          </button>
-        </div>
-      </div>
+      <a routerLink="/hiring-processes" class="text-xs text-text-muted hover:underline">
+        ← Back to processes
+      </a>
 
-      <div class="grid gap-4 md:grid-cols-2">
-        <section class="card">
-          <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">Status</h2>
-          <div class="flex items-center gap-3">
-            <app-status-badge [status]="process.value().status" />
-            @if (nextStatuses().length > 0) {
-              <select
-                id="next-status"
-                class="input max-w-48"
-                aria-label="Move this process to another status"
-                [disabled]="changeStatus.isPending()"
-                (change)="onStatusChange($event)"
-              >
-                <option value="">Move to…</option>
-                @for (s of nextStatuses(); track s) {
-                  <option [value]="s">{{ statusInfo[s].label }}</option>
-                }
-              </select>
+      <section class="mt-4 rounded-xl border border-border bg-surface p-6">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <h1 class="text-[32px] font-medium leading-tight tracking-[-0.01em] text-text">
+              {{ process.value().companyName }}
+            </h1>
+            @if (process.value().jobTitle; as jobTitle) {
+              <p class="mt-1 text-sm text-text-secondary">{{ jobTitle }}</p>
             }
+            <div class="mt-3">
+              <app-status-badge [status]="process.value().status" />
+            </div>
           </div>
-          @if (process.value().archivedAt) {
-            <p class="mt-3 text-xs text-text-muted">
-              Archived {{ process.value().archivedAt | relativeDate }} · {{ process.value().archiveReason }}
+          <div class="flex shrink-0 gap-1">
+            <a [routerLink]="['/hiring-processes', id(), 'edit']" class="btn btn-secondary h-8">Edit</a>
+            @if (process.value().archivedAt) {
+              <button type="button" class="btn btn-secondary h-8" [disabled]="restore.isPending()" (click)="onRestore()">
+                Restore
+              </button>
+            } @else {
+              <button type="button" class="btn btn-secondary h-8" (click)="archiveDialog().open()">
+                Archive
+              </button>
+            }
+            <button type="button" class="btn btn-danger h-8" [disabled]="remove.isPending()" (click)="onDelete()">
+              Delete
+            </button>
+          </div>
+        </div>
+
+        <app-process-stats [process]="process.value()" [interactionCount]="interactionCount()" />
+
+        <div class="mt-6 flex items-center gap-3 border-t border-border pt-6">
+          @if (nextStatuses().length > 0) {
+            <select
+              id="next-status"
+              class="input max-w-48"
+              aria-label="Move this process to another status"
+              [disabled]="changeStatus.isPending()"
+              (change)="onStatusChange($event)"
+            >
+              <option value="">Move to…</option>
+              @for (s of nextStatuses(); track s) {
+                <option [value]="s" [selected]="false">{{ statusInfo[s].label }}</option>
+              }
+            </select>
+          }
+          @if (process.value().archivedAt; as archivedAt) {
+            <p class="text-xs text-text-muted">
+              Archived {{ archivedAt | absoluteDate: "date" }} · {{ process.value().archiveReason }}
             </p>
           }
-          @if (actionError(); as message) {
-            <p class="field-error" role="alert">{{ message }}</p>
-          }
-        </section>
+        </div>
 
-        <section class="card">
-          <h2 class="mb-3 text-xs font-medium uppercase tracking-wide text-text-muted">Compensation</h2>
-          <p class="font-mono text-lg">
-            {{ process.value().salary | money: process.value().currency : process.value().salaryRateType }}
-          </p>
-          <p class="mt-3 text-xs text-text-muted">
-            Created {{ process.value().createdAt | relativeDate }} · Updated {{ process.value().updatedAt | relativeDate }}
-          </p>
-        </section>
-      </div>
+        @if (actionError(); as message) {
+          <p class="field-error mt-3" role="alert">{{ message }}</p>
+        }
+      </section>
+
+      <app-interaction-section [hiringProcessId]="id()" (changed)="process.reload()" />
 
       <app-archive-dialog (confirm)="onArchive($event)" />
     }
@@ -137,6 +143,11 @@ export class DetailPage {
 
   protected readonly archiveDialog = viewChild.required(ArchiveDialog);
   protected readonly statusInfo = HIRING_PROCESS_STATUS_INFO;
+
+  /* The stats row shows the same count the section's heading does; both read the
+     one cached interactions query, so this is a second reader, not a second fetch. */
+  private readonly interactions = injectInteractionList(() => this.id());
+  protected readonly interactionCount = computed(() => this.interactions.data()?.length ?? 0);
 
   protected readonly changeStatus = injectChangeHiringProcessStatus();
   protected readonly archive = injectArchiveHiringProcess();
