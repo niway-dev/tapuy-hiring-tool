@@ -7,6 +7,8 @@ import {
 import type { UpdateInteraction } from "@interviews-tool/domain/schemas";
 import type { Interaction } from "../../../../core/api/interaction.model";
 
+/* The domain schema requires 10..10000 characters, so a two-word note would be
+   rejected by the server. Catch it here and say why, instead of surfacing a 422. */
 const CONTENT_MIN = 10;
 const TITLE_MAX = 100;
 
@@ -22,14 +24,14 @@ const TITLE_MAX = 100;
         class="input mb-4"
         [maxLength]="titleMax"
         [value]="title()"
-        (input)="title.set($any($event.target).value)"
+        (input)="onTitle($event)"
       />
 
       <label class="label" for="edit-type">Type</label>
       <select
         id="edit-type"
         class="input mb-4"
-        (change)="type.set($any($event.target).value)"
+        (change)="onType($event)"
       >
         @for (t of types; track t) {
           <option [value]="t" [selected]="t === type()">{{ labels[t] }}</option>
@@ -82,6 +84,14 @@ export class EditInteractionDialog {
 
   close(): void {
     this.dialog().nativeElement.close();
+  }
+
+  protected onTitle(event: Event): void {
+    this.title.set((event.target as HTMLInputElement).value);
+  }
+
+  protected onType(event: Event): void {
+    this.type.set((event.target as HTMLSelectElement).value as InteractionType);
   }
 
   protected onContent(event: Event): void {
