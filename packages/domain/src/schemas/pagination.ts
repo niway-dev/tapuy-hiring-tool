@@ -25,7 +25,14 @@ export const paginationQuerySchema = z.object({
  * Filter parameters for hiring process queries
  */
 export const hiringProcessFilterSchema = z.object({
-  statuses: z.array(z.enum(HIRING_PROCESS_STATUS_VALUES)).optional(),
+  // Query strings arrive as a bare string when only one value is sent
+  // (`?statuses=ongoing`) and as an array when repeated. Normalize to an array.
+  statuses: z
+    .union([
+      z.array(z.enum(HIRING_PROCESS_STATUS_VALUES)),
+      z.enum(HIRING_PROCESS_STATUS_VALUES).transform((value) => [value]),
+    ])
+    .optional(),
   salaryDeclared: z
     .union([z.boolean(), z.enum(["true", "false"]).transform((v) => v === "true")])
     .optional(),
