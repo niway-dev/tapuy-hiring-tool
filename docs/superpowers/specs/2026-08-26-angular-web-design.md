@@ -18,7 +18,7 @@ No se borra nada. `apps/web` sigue siendo la app de producción.
 | Pantalla                     | Endpoints                                                                                                                                       |
 | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
 | Login / Signup               | `POST /api/auth/sign-in/email`, `POST /api/auth/sign-up/email`, `GET /api/auth/get-session`, `POST /api/auth/sign-out` (vía better-auth client) |
-| Lista de hiring processes    | `GET /api/v1/hiring-processes` (page, limit, statuses, scope, stale, sort, dir)                                                                 |
+| Lista de hiring processes    | `GET /api/v1/hiring-processes` (page, limit, statuses, salaryDeclared). `scope/stale/sort/dir` no existen en la API hoy → fase 2                |
 | Detalle                      | `GET /api/v1/hiring-processes/:id`                                                                                                              |
 | Crear / Editar               | `POST /api/v1/hiring-processes`, `PUT /api/v1/hiring-processes/:id`                                                                             |
 | Acciones desde detalle/lista | `PATCH /:id/status`, `POST /:id/archive`, `POST /:id/restore`, `DELETE /:id`                                                                    |
