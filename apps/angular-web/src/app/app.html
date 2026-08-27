@@ -1,2 +1,16 @@
-<h1 class="p-4 text-xl font-semibold">angular-web · {{ statusCount }} statuses</h1>
-<router-outlet />
+<header class="border-b border-border bg-surface">
+  <div class="mx-auto flex max-w-5xl items-center justify-between px-4 py-3">
+    <a routerLink="/hiring-processes" class="text-sm font-semibold tracking-tight">
+      Tapuy <span class="text-text-muted">· angular</span>
+    </a>
+    @if (auth.isAuthenticated()) {
+    <div class="flex items-center gap-3 text-sm">
+      <span class="text-text-secondary">{{ auth.user()?.email }}</span>
+      <button type="button" class="btn btn-secondary" (click)="signOut()">Sign out</button>
+    </div>
+    }
+  </div>
+</header>
+<main class="mx-auto max-w-5xl px-4 py-6">
+  <router-outlet />
+</main>

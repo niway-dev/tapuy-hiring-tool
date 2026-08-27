@@ -1,12 +1,18 @@
-import { Component } from "@angular/core";
-import { RouterOutlet } from "@angular/router";
-import { HIRING_PROCESS_STATUS_ORDER } from "@interviews-tool/domain/constants";
+import { Component, inject } from "@angular/core";
+import { Router, RouterLink, RouterOutlet } from "@angular/router";
+import { AuthService } from "./core/auth/auth.service";
 
 @Component({
   selector: "app-root",
-  imports: [RouterOutlet],
+  imports: [RouterOutlet, RouterLink],
   templateUrl: "./app.html",
 })
 export class App {
-  protected readonly statusCount = HIRING_PROCESS_STATUS_ORDER.length;
+  protected readonly auth = inject(AuthService);
+  private readonly router = inject(Router);
+
+  protected async signOut(): Promise<void> {
+    await this.auth.signOut();
+    await this.router.navigate(["/auth/login"]);
+  }
 }
