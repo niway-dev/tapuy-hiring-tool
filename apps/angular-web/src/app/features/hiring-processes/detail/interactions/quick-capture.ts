@@ -53,6 +53,11 @@ export class QuickCapture {
 
   protected submit(event?: Event): void {
     event?.preventDefault();
+    // The button path is already guarded by [disabled]="pending()"; the
+    // keyboard path (Enter) has no such guard from the DOM, so a second
+    // keypress while a create is still in flight must be a no-op here, or
+    // two quick Enters create two identical interactions.
+    if (this.pending()) return;
     const content = this.text().trim();
     if (!content) return;
     if (content.length < CONTENT_MIN) {

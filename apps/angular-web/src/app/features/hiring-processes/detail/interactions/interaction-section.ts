@@ -20,7 +20,7 @@ import { QuickCapture } from "./quick-capture";
       <span class="font-mono text-[13px] text-text-muted">{{ count() }} logged</span>
     </div>
 
-    @if (timelineActionError(); as message) {
+    @if (deleteError(); as message) {
       <p class="field-error mb-4" role="alert">{{ message }}</p>
     }
 
@@ -36,7 +36,12 @@ import { QuickCapture } from "./quick-capture";
       (remove)="deleteDialog().open($event)"
     />
 
-    <app-edit-interaction-dialog (save)="onSave($event)" />
+    <app-edit-interaction-dialog
+      [pending]="update.isPending()"
+      [serverError]="update.error()?.message ?? null"
+      (save)="onSave($event)"
+      (closed)="onEditDialogClosed()"
+    />
     <app-delete-interaction-dialog (confirm)="onDelete($event)" />
   `,
 })
@@ -59,13 +64,13 @@ export class InteractionSection {
   protected readonly update = injectUpdateInteraction();
   protected readonly remove = injectDeleteInteraction();
 
-  /* Edit and delete are triggered from dialogs that close before their request
-     settles, so their failures have nowhere to land unless the section shows
-     them itself. Keeping them out of the composer's slot stops a failed edit
-     from reading as a failed note. */
-  protected readonly timelineActionError = computed(
-    () => this.update.error()?.message ?? this.remove.error()?.message ?? null,
-  );
+  /* Delete has no dialog of its own to report into (the confirm dialog closes
+     immediately, before the request settles), so its failure has nowhere to
+     land unless the section shows it here. Update's failure renders inside
+     EditInteractionDialog itself instead -- that dialog stays open on a
+     failed save, and a page-level message painted underneath a native
+     <dialog>'s top layer would be invisible to the user. */
+  protected readonly deleteError = computed(() => this.remove.error()?.message ?? null);
 
   /* Only the action just taken may show an error, and a mutation that is still
      in flight keeps its observer so its onSuccess still fires. Same rule as the
@@ -99,5 +104,12 @@ export class InteractionSection {
   protected onDelete(interactionId: string): void {
     this.resetActionErrors();
     this.remove.mutate({ hiringProcessId: this.hiringProcessId(), interactionId });
+  }
+
+  /* Cancel, Escape, or a successful save all end in the native dialog closing.
+     Clear its stale error then, same pending-guard as resetActionErrors: a
+     still in-flight update keeps its observer so its onSuccess still fires. */
+  protected onEditDialogClosed(): void {
+    if (!this.update.isPending()) this.update.reset();
   }
 }

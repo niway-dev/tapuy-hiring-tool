@@ -1,7 +1,7 @@
 import { Component, input } from "@angular/core";
 import type { HiringProcess } from "../../../core/api/hiring-process.model";
 import { AbsoluteDatePipe } from "../../../shared/pipes/absolute-date.pipe";
-import { MoneyPipe } from "../../../shared/pipes/money.pipe";
+import { MoneyPipe, RATE_LABEL } from "../../../shared/pipes/money.pipe";
 
 /* The four-stat row under the header, matching apps/web: two columns on small
    screens, four from lg. Mono type throughout — these are figures, not prose. */
@@ -17,7 +17,7 @@ import { MoneyPipe } from "../../../shared/pipes/money.pipe";
             {{ process().salary | money: process().currency }}
           </p>
           <p class="mt-0.5 font-mono text-xs text-text-secondary">
-            {{ process().salaryRateType }} · {{ process().currency }}
+            {{ rateLabel[process().salaryRateType] }} · {{ process().currency }}
           </p>
         } @else {
           <p class="font-mono text-2xl text-text-muted">—</p>
@@ -51,4 +51,6 @@ import { MoneyPipe } from "../../../shared/pipes/money.pipe";
 export class ProcessStats {
   readonly process = input.required<HiringProcess>();
   readonly interactionCount = input.required<number>();
+
+  protected readonly rateLabel = RATE_LABEL;
 }

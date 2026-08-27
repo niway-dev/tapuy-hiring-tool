@@ -4,6 +4,12 @@ import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants
 const CURRENCY_SYMBOL: Record<Currency, string> = { USD: "$", PEN: "S/ " };
 const RATE_SUFFIX: Record<SalaryRateType, string> = { monthly: " / mo", hourly: " / hr" };
 
+/** Human label for a salary rate type, e.g. for the process detail's stats row. */
+export const RATE_LABEL: Record<SalaryRateType, string> = {
+  monthly: "per month",
+  hourly: "per hour",
+};
+
 @Pipe({ name: "money" })
 export class MoneyPipe implements PipeTransform {
   transform(

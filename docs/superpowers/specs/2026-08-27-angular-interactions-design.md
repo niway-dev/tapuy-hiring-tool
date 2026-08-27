@@ -140,17 +140,16 @@ DetailPage
      ├─ injectInteractionList(id)   TanStack  GET .../interactions
      ├─ injectCreateInteraction()   ─┐
      ├─ injectUpdateInteraction()   ─┼─ onSuccess: invalida interactionKeys.list(id)
-     └─ injectDeleteInteraction()   ─┘              + llama a process.reload()
+     └─ injectDeleteInteraction()   ─┘
 ```
 
-El `reload()` del detalle es necesario porque el contador "N logged" se muestra en la cabecera, que
-vive en el `httpResource`, y `httpResource` no comparte caché con TanStack. Es el mismo compromiso
-que ya asumió la fase 1, y aquí se hace explícito: **el contador se deriva de la lista de TanStack,
-no del detalle**, así que en realidad no hace falta recargar el detalle por el contador — solo por
-`updatedAt`, que sí cambia al añadir una interacción.
+El servidor nunca escribe la fila de `hiring_processes` al crear, editar o borrar una interacción,
+así que `updatedAt` no cambia y la cabecera del detalle no necesita refrescarse tras esas mutaciones.
+El contador "N logged" tampoco depende del `httpResource`: se deriva de la lista de TanStack
+(`list().length`), que se invalida a sí misma en cada mutación exitosa.
 
-**Decisión:** el contador lo aporta la query de interacciones (`list().length`), y las mutaciones
-recargan el detalle únicamente para refrescar `Last updated`.
+**Decisión:** el contador lo aporta la query de interacciones; el `httpResource` del detalle no se
+recarga como consecuencia de una mutación de interacciones.
 
 ---
 

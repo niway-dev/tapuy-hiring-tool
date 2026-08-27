@@ -76,6 +76,20 @@ describe("QuickCapture", () => {
     expect(fixture.nativeElement.textContent).not.toContain("at least 10 characters");
   });
 
+  it("ignores a second Enter while pending, so it cannot create a duplicate note", () => {
+    const { fixture, logged, input } = setup();
+    type(input, "Recruiter called about the role");
+    fixture.detectChanges();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+    // Simulate the parent marking the create as in flight after the first Enter.
+    fixture.componentRef.setInput("pending", true);
+    fixture.detectChanges();
+    input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+    fixture.detectChanges();
+    expect(logged).toHaveLength(1);
+  });
+
   it("shows a server error passed in from the parent", () => {
     const { fixture } = setup();
     fixture.componentRef.setInput("serverError", "Could not log that");

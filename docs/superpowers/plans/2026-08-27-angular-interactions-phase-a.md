@@ -1923,7 +1923,8 @@ git commit -m "feat(angular-web): edit and delete dialogs for interactions"
 **Interfaces:**
 
 - Consumes: Tasks 6, 9, 10, 11.
-- Produces: `<app-interaction-section [hiringProcessId]="..." (changed)="..." />`, exported class `InteractionSection`. It owns the three mutations and the two dialogs, renders the section heading with the live count, and emits `changed` after any successful create/update/delete so the detail page can refresh `Last updated`.
+- Produces: `<app-interaction-section [hiringProcessId]="..." />`, exported class `InteractionSection`. It owns the three mutations and the two dialogs, and renders the section heading with the live count.
+  (Dropped during execution: a `changed` output and a `(changed)="process.reload()"` binding on the detail page — the server never writes the `hiring_processes` row on an interaction create/update/delete, so there is nothing on the header for a reload to refresh.)
 
 - [ ] **Step 1: Write the failing spec**
 
@@ -1975,10 +1976,8 @@ describe("InteractionSection", () => {
     });
   });
 
-  it("creates a note from the quick composer and emits changed", async () => {
+  it("creates a note from the quick composer", async () => {
     const { api, fixture } = setup();
-    const changes: void[] = [];
-    fixture.componentInstance.changed.subscribe(() => changes.push(undefined));
     await vi.waitFor(() => {
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector("input")).not.toBeNull();
@@ -1994,7 +1993,6 @@ describe("InteractionSection", () => {
         type: "note",
       }),
     );
-    await vi.waitFor(() => expect(changes.length).toBeGreaterThan(0));
   });
 
   it("surfaces a create failure without losing the section", async () => {
@@ -2029,7 +2027,7 @@ Expected: FAIL — `Cannot find module './interaction-section'`.
 - [ ] **Step 3: Implement**
 
 ```ts
-import { Component, computed, input, output, viewChild } from "@angular/core";
+import { Component, computed, input, viewChild } from "@angular/core";
 import type { UpdateInteraction } from "@interviews-tool/domain/schemas";
 import type { Interaction } from "../../../../core/api/interaction.model";
 import {
@@ -2070,8 +2068,6 @@ import { QuickCapture } from "./quick-capture";
 })
 export class InteractionSection {
   readonly hiringProcessId = input.required<string>();
-  /** Fires after any successful mutation so the detail page can refresh Last updated. */
-  readonly changed = output<void>();
 
   protected readonly editDialog = viewChild.required(EditInteractionDialog);
   protected readonly deleteDialog = viewChild.required(DeleteInteractionDialog);
@@ -2104,30 +2100,21 @@ export class InteractionSection {
 
   protected onLog(content: string): void {
     this.resetActionErrors();
-    this.create.mutate(
-      { hiringProcessId: this.hiringProcessId(), body: { content, type: "note" } },
-      { onSuccess: () => this.changed.emit() },
-    );
+    this.create.mutate({ hiringProcessId: this.hiringProcessId(), body: { content, type: "note" } });
   }
 
   protected onSave(event: { interactionId: string; body: UpdateInteraction }): void {
     this.resetActionErrors();
-    this.update.mutate(
-      {
-        hiringProcessId: this.hiringProcessId(),
-        interactionId: event.interactionId,
-        body: event.body,
-      },
-      { onSuccess: () => this.changed.emit() },
-    );
+    this.update.mutate({
+      hiringProcessId: this.hiringProcessId(),
+      interactionId: event.interactionId,
+      body: event.body,
+    });
   }
 
   protected onDelete(interactionId: string): void {
     this.resetActionErrors();
-    this.remove.mutate(
-      { hiringProcessId: this.hiringProcessId(), interactionId },
-      { onSuccess: () => this.changed.emit() },
-    );
+    this.remove.mutate({ hiringProcessId: this.hiringProcessId(), interactionId });
   }
 }
 ```
@@ -2166,7 +2153,7 @@ git commit -m "feat(angular-web): interaction section wiring composer, timeline 
 - Consumes: `InteractionSection` (Task 12), `AbsoluteDatePipe` (Task 4).
 - Produces: a detail page whose header card and 4-stat row match `apps/web`'s, with the interactions section below it.
 
-**Do not change** the page's existing behaviour: the `httpResource` fetch, the four mutations, `resetActionErrors`, the status `<select>`, the archive dialog, the 404 branch and the `isLoading() && !hasValue()` guard all stay exactly as they are. This task is a template rewrite plus one new child component — the class logic gains only an `interactionCount` and the `changed` handler.
+**Do not change** the page's existing behaviour: the `httpResource` fetch, the four mutations, `resetActionErrors`, the status `<select>`, the archive dialog, the 404 branch and the `isLoading() && !hasValue()` guard all stay exactly as they are. This task is a template rewrite plus one new child component — the class logic gains only an `interactionCount`.
 
 - [ ] **Step 1: Read the current page**
 
@@ -2306,10 +2293,14 @@ In `detail-page.ts`, replace the current header `<div class="mb-4 flex items-sta
   }
 </section>
 
-<app-interaction-section [hiringProcessId]="id()" (changed)="process.reload()" />
+<app-interaction-section [hiringProcessId]="id()" />
 
 <app-archive-dialog (confirm)="onArchive($event)" />
 ```
+
+(Dropped during execution: the `(changed)="process.reload()"` binding shown in earlier drafts of this
+task — the server never writes the `hiring_processes` row on an interaction create/update/delete, so
+there is nothing on the header for a reload to refresh.)
 
 - [ ] **Step 4: Update the class**
 

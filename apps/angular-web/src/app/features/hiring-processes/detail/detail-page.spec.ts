@@ -54,7 +54,7 @@ describe("DetailPage", () => {
     // The stats row shows the amount and the rate/currency on separate lines
     // (see process-stats.ts): the money pipe here omits the rate suffix.
     expect(fixture.nativeElement.textContent).toContain("$3,000");
-    expect(fixture.nativeElement.textContent).toContain("monthly · USD");
+    expect(fixture.nativeElement.textContent).toContain("per month · USD");
     expect(fixture.nativeElement.querySelector("select#next-status")).not.toBeNull();
   });
 

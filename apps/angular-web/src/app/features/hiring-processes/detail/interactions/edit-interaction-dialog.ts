@@ -1,4 +1,4 @@
-import { Component, ElementRef, output, signal, viewChild } from "@angular/core";
+import { Component, ElementRef, input, output, signal, viewChild } from "@angular/core";
 import {
   INTERACTION_TYPE_LABELS,
   INTERACTION_TYPE_VALUES,
@@ -15,7 +15,7 @@ const TITLE_MAX = 100;
 @Component({
   selector: "app-edit-interaction-dialog",
   template: `
-    <dialog #dialog class="card w-full max-w-lg backdrop:bg-black/60">
+    <dialog #dialog class="card w-full max-w-lg backdrop:bg-black/60" (close)="onDialogClose()">
       <h2 class="mb-4 text-base font-semibold">Edit interaction</h2>
 
       <label class="label" for="edit-title">Title</label>
@@ -50,16 +50,27 @@ const TITLE_MAX = 100;
           Content needs at least {{ contentMin }} characters.
         </p>
       }
+      @if (serverError(); as message) {
+        <p class="field-error mb-3" role="alert">{{ message }}</p>
+      }
 
       <div class="mt-4 flex justify-end gap-2">
         <button type="button" class="btn btn-secondary" (click)="close()">Cancel</button>
-        <button type="button" class="btn btn-primary" (click)="onSave()">Save changes</button>
+        <button type="button" class="btn btn-primary" [disabled]="pending()" (click)="onSave()">
+          {{ pending() ? "Saving…" : "Save changes" }}
+        </button>
       </div>
     </dialog>
   `,
 })
 export class EditInteractionDialog {
   readonly save = output<{ interactionId: string; body: UpdateInteraction }>();
+  /* Emitted whenever the native dialog closes -- via Cancel, Escape, or the
+     owning section calling close() on success -- so the section can clear a
+     stale server error instead of leaving it to be revealed on next open. */
+  readonly closed = output<void>();
+  readonly pending = input(false);
+  readonly serverError = input<string | null>(null);
   private readonly dialog = viewChild.required<ElementRef<HTMLDialogElement>>("dialog");
 
   protected readonly types = INTERACTION_TYPE_VALUES;
@@ -86,6 +97,10 @@ export class EditInteractionDialog {
     this.dialog().nativeElement.close();
   }
 
+  protected onDialogClose(): void {
+    this.closed.emit();
+  }
+
   protected onTitle(event: Event): void {
     this.title.set((event.target as HTMLInputElement).value);
   }
@@ -100,6 +115,9 @@ export class EditInteractionDialog {
   }
 
   protected onSave(): void {
+    // Guards the keyboard/Enter path the same way [disabled]="pending()" guards
+    // the button: a slow network must not let a second click fire a second PUT.
+    if (this.pending()) return;
     const content = this.content().trim();
     if (content.length < CONTENT_MIN) {
       this.tooShort.set(true);

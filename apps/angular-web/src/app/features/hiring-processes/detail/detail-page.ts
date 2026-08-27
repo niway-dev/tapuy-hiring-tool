@@ -92,27 +92,29 @@ import { ProcessStats } from "./process-stats";
 
         <app-process-stats [process]="process.value()" [interactionCount]="interactionCount()" />
 
-        <div class="mt-6 flex items-center gap-3 border-t border-border pt-6">
-          @if (nextStatuses().length > 0) {
-            <select
-              id="next-status"
-              class="input max-w-48"
-              aria-label="Move this process to another status"
-              [disabled]="changeStatus.isPending()"
-              (change)="onStatusChange($event)"
-            >
-              <option value="">Move to…</option>
-              @for (s of nextStatuses(); track s) {
-                <option [value]="s" [selected]="false">{{ statusInfo[s].label }}</option>
-              }
-            </select>
-          }
-          @if (process.value().archivedAt; as archivedAt) {
-            <p class="text-xs text-text-muted">
-              Archived {{ archivedAt | absoluteDate: "date" }} · {{ process.value().archiveReason }}
-            </p>
-          }
-        </div>
+        @if (nextStatuses().length > 0 || process.value().archivedAt) {
+          <div class="mt-6 flex items-center gap-3 border-t border-border pt-6">
+            @if (nextStatuses().length > 0) {
+              <select
+                id="next-status"
+                class="input max-w-48"
+                aria-label="Move this process to another status"
+                [disabled]="changeStatus.isPending()"
+                (change)="onStatusChange($event)"
+              >
+                <option value="">Move to…</option>
+                @for (s of nextStatuses(); track s) {
+                  <option [value]="s" [selected]="false">{{ statusInfo[s].label }}</option>
+                }
+              </select>
+            }
+            @if (process.value().archivedAt; as archivedAt) {
+              <p class="text-xs text-text-muted">
+                Archived {{ archivedAt | absoluteDate: "date" }} · {{ process.value().archiveReason }}
+              </p>
+            }
+          </div>
+        }
 
         @if (actionError(); as message) {
           <p class="field-error mt-3" role="alert">{{ message }}</p>

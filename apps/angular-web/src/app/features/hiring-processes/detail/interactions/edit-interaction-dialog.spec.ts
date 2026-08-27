@@ -124,6 +124,41 @@ describe("EditInteractionDialog", () => {
     expect(fixture.nativeElement.textContent).not.toContain("at least 10 characters");
   });
 
+  it("shows a server error inside the dialog, above the buttons", () => {
+    const { fixture } = setup();
+    fixture.componentInstance.open(noteInteraction);
+    fixture.componentRef.setInput("serverError", "Update rejected");
+    fixture.detectChanges();
+    const alerts = Array.from(
+      fixture.nativeElement.querySelectorAll('[role="alert"]'),
+    ) as HTMLElement[];
+    expect(alerts.some((el) => el.textContent?.includes("Update rejected"))).toBe(true);
+  });
+
+  it("disables Save and swaps its label while pending, and ignores a save attempt", () => {
+    const { fixture, saved, content, saveButton } = setup();
+    fixture.componentInstance.open(noteInteraction);
+    typeInto(content, "Content long enough to pass validation.");
+    fixture.componentRef.setInput("pending", true);
+    fixture.detectChanges();
+    expect(saveButton.disabled).toBe(true);
+    expect(saveButton.textContent?.trim()).toBe("Saving…");
+    saveButton.click();
+    fixture.detectChanges();
+    expect(saved).toHaveLength(0);
+  });
+
+  it("emits closed when the native dialog closes", () => {
+    const { fixture, dialog } = setup();
+    const closes: void[] = [];
+    fixture.componentInstance.closed.subscribe(() => closes.push(undefined));
+    fixture.componentInstance.open(noteInteraction);
+    fixture.detectChanges();
+    dialog.dispatchEvent(new Event("close"));
+    fixture.detectChanges();
+    expect(closes).toHaveLength(1);
+  });
+
   it("does not close the dialog itself when saving", () => {
     const { fixture, dialog, content, saveButton } = setup();
     fixture.componentInstance.open(noteInteraction);
