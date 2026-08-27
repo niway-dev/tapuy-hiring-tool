@@ -87,4 +87,35 @@ describe("HiringProcessForm", () => {
     );
     expect((fixture.nativeElement.querySelector("#salary") as HTMLInputElement).value).toBe("2000");
   });
+
+  it("keeps an in-progress edit when initial changes again (e.g. a background refetch)", () => {
+    const first: HiringProcess = {
+      id: "11111111-1111-4111-8111-111111111111",
+      companyName: "Globex",
+      jobTitle: "Backend",
+      status: "on-hold",
+      salary: 2000,
+      currency: "USD",
+      salaryRateType: "monthly",
+      userId: "u1",
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-02T00:00:00.000Z",
+    };
+    const { fixture } = setup(first);
+    expect((fixture.nativeElement.querySelector("#companyName") as HTMLInputElement).value).toBe(
+      "Globex",
+    );
+
+    // The user starts editing — the form is now dirty.
+    set(fixture, "companyName", "Initech");
+
+    // A refetch resolves with a new object (e.g. window-focus refetch of the same record).
+    fixture.componentRef.setInput("initial", { ...first, companyName: "Umbrella Corp" });
+    fixture.detectChanges();
+
+    // The user's in-progress edit must survive — the effect must not reset over it.
+    expect((fixture.nativeElement.querySelector("#companyName") as HTMLInputElement).value).toBe(
+      "Initech",
+    );
+  });
 });

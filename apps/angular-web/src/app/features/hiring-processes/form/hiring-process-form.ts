@@ -106,10 +106,14 @@ export class HiringProcessForm {
   });
 
   constructor() {
-    // Prefill when editing. Runs again if `initial` changes (e.g. query resolves later).
+    // Prefill when editing. Runs again if `initial` changes (e.g. the query
+    // resolves after construction, or later refetches on window focus /
+    // staleness). Guarded on `pristine`: once the user has typed anything,
+    // a background refetch must not silently clobber their in-progress
+    // edits with the (possibly identical) server value.
     effect(() => {
       const value = this.initial();
-      if (!value) return;
+      if (!value || !this.form.pristine) return;
       this.form.reset({
         companyName: value.companyName,
         jobTitle: value.jobTitle ?? "",
