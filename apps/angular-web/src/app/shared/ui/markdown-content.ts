@@ -6,11 +6,27 @@ import { Marked } from "marked";
    wasteful, and the options must not drift between call sites. GFM is on so
    task lists, tables and strikethrough match what react-markdown renders in
    apps/web via remark-gfm. */
-const marked = new Marked({ gfm: true, breaks: true });
+const marked = new Marked({ gfm: true, breaks: true }).use({
+  renderer: {
+    /* Angular's sanitizer drops <input> outright, so a GFM task list would lose
+       its box. Emitting an inert span keeps the visual parity with apps/web
+       without bypassing the sanitizer — the React checkbox is disabled anyway.
+       `data-*` attributes are NOT in Angular's sanitizer allowlist (checked
+       directly against @angular/core's VALID_ATTRS) and get stripped silently;
+       `aria-checked` is, and is the semantically correct attribute for a
+       checkbox-shaped element anyway, so state rides on that instead. */
+    checkbox({ checked }) {
+      return `<span class="task-checkbox" role="checkbox" aria-checked="${checked}" aria-disabled="true"></span>`;
+    },
+  },
+});
 
+/* The stylesheet is imported globally in styles.css, not via styleUrl, because
+   these rules target markup produced by [innerHTML]. Emulated encapsulation
+   only stamps _ngcontent-* on the component's own template, so a scoped copy
+   would never match a single parsed element. */
 @Component({
   selector: "app-markdown",
-  styleUrl: "./markdown-content.css",
   template: `
     <div class="markdown-content" [class.markdown-content-compact]="variant() === 'compact'">
       <!-- Angular sanitizes [innerHTML] on its own: no bypassSecurityTrust here,

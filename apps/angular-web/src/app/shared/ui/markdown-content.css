@@ -183,6 +183,41 @@
   accent-color: var(--mint);
 }
 
+/* --- Angular-only: not part of the packages/web-ui copy. Do not "resync" away. ---
+   marked's checkbox renderer is overridden (see markdown-content.ts) to emit an
+   inert <span class="task-checkbox" role="checkbox" aria-checked="..."> instead
+   of <input>, because Angular's [innerHTML] sanitizer strips <input> elements
+   outright (and strips data-* attributes too, which is why state rides on
+   aria-checked, not a data attribute). This draws the same small ticked/unticked
+   box using the file's existing tokens. */
+.markdown-content .task-checkbox {
+  display: inline-block;
+  position: relative;
+  width: 0.875rem;
+  height: 0.875rem;
+  margin-right: 0.5rem;
+  vertical-align: middle;
+  border: 1px solid var(--border-strong);
+  border-radius: 0.1875rem;
+  background-color: transparent;
+}
+
+.markdown-content .task-checkbox[aria-checked="true"] {
+  border-color: var(--mint);
+}
+
+.markdown-content .task-checkbox[aria-checked="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0.25rem;
+  top: 0.0625rem;
+  width: 0.25rem;
+  height: 0.4375rem;
+  border: solid var(--mint);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
 /* Compact variant — timeline cards. Same 16/1.7 prose, tighter headings. */
 .markdown-content-compact {
   font-size: 16px;

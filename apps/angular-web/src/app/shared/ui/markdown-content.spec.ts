@@ -18,13 +18,27 @@ describe("MarkdownContent", () => {
     expect(render("cost is `$` monthly").querySelector("code")?.textContent).toBe("$");
   });
 
-  it("renders a GFM task list as a checkbox", () => {
-    // Angular's sanitizer strips the <input type="checkbox" disabled> that marked
-    // emits for a GFM task-list item entirely (not just the `disabled` attribute) --
-    // unlike react-markdown + remark-gfm, which renders the checkbox. Assert on the
-    // list-item text that survives sanitization instead of the stripped element.
+  it("renders an unchecked GFM task list item as a task-checkbox span", () => {
+    // Angular's sanitizer strips the raw <input type="checkbox"> that marked would
+    // otherwise emit (and strips data-* attributes too), so the component's Marked
+    // instance overrides the checkbox renderer to emit an inert
+    // <span class="task-checkbox" role="checkbox" aria-checked="..."> instead
+    // (see markdown-content.ts) -- that span is what survives sanitization and is
+    // what markdown-content.css draws a visible box for.
     const el = render("- [ ] follow up on Friday");
-    expect(el.textContent).toContain("follow up on Friday");
+    const item = el.querySelector("li");
+    expect(item?.textContent).toContain("follow up on Friday");
+    expect(item?.textContent).not.toContain("[ ]");
+    const checkbox = el.querySelector(".task-checkbox");
+    expect(checkbox).not.toBeNull();
+    expect(checkbox?.getAttribute("aria-checked")).toBe("false");
+  });
+
+  it("renders a checked GFM task list item with aria-checked=true", () => {
+    const el = render("- [x] done thing");
+    const checkbox = el.querySelector(".task-checkbox");
+    expect(checkbox).not.toBeNull();
+    expect(checkbox?.getAttribute("aria-checked")).toBe("true");
   });
 
   it("renders a paragraph for plain text", () => {
