@@ -308,11 +308,21 @@
         "typescript": "^5",
       },
     },
+    "packages/ui-markdown": {
+      "name": "@interviews-tool/ui-markdown",
+      "version": "1.0.0",
+      "devDependencies": {
+        "tsdown": "^0.18.2",
+        "typescript": "^5",
+        "vitest": "^2.1.0",
+      },
+    },
     "packages/web-ui": {
       "name": "@interviews-tool/web-ui",
       "version": "0.0.0",
       "dependencies": {
         "@base-ui/react": "^1.0.0",
+        "@interviews-tool/ui-markdown": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "lucide-react": "^0.525.0",
@@ -1018,6 +1028,8 @@
     "@interviews-tool/infra-env": ["@interviews-tool/infra-env@workspace:packages/infra-env"],
 
     "@interviews-tool/infra-prisma-db": ["@interviews-tool/infra-prisma-db@workspace:packages/infra-prisma-db"],
+
+    "@interviews-tool/ui-markdown": ["@interviews-tool/ui-markdown@workspace:packages/ui-markdown"],
 
     "@interviews-tool/web-ui": ["@interviews-tool/web-ui@workspace:packages/web-ui"],
 
