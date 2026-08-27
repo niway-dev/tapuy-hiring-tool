@@ -33,5 +33,7 @@ bun run check-types
 - `src/app/features/hiring-processes` — TanStack Query factories, list / form / detail pages
 - `src/app/features/auth` — login & signup with Signal Forms
 - The detail page uses `httpResource` on purpose, to compare it with TanStack Query.
+- `src/app/features/hiring-processes/detail/interactions` — timeline, quick capture, edit/delete dialogs
+- Markdown is rendered with `marked` through `[innerHTML]`; Angular sanitizes it, and the normalizer is shared with the React client via `@interviews-tool/ui-markdown`.
 
-Rule: this app imports only `@interviews-tool/domain`.
+Rule: this app imports only `@interviews-tool/domain` and `@interviews-tool/ui-markdown`.
