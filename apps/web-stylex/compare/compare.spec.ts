@@ -21,7 +21,27 @@ for (const dir of ["baseline", "candidate", "diff"])
 
 async function shoot(page: Page, origin: string, path: string, theme: Theme): Promise<Buffer> {
   await page.context().addCookies([themeCookie(origin, theme)]);
-  await page.goto(`${origin}${path}`, { waitUntil: "networkidle" });
+  const url = `${origin}${path}`;
+  const res = await page.goto(url, { waitUntil: "networkidle" });
+
+  if (!res) throw new Error(`compare: no response for ${url}`);
+  if (res.status() >= 400) {
+    throw new Error(`compare: ${url} returned ${res.status()}`);
+  }
+
+  /* Identity check: a 200 that silently renders the wrong page (an auth
+     redirect, a route that bounces to /, a shared build regression that
+     serves the same fallback on both origins) would otherwise pixel-diff
+     as identical and report a false 0.000%. Compare the landed path against
+     the requested one, ignoring a trailing slash. */
+  const requestedPath = new URL(url).pathname.replace(/\/$/, "") || "/";
+  const landedPath = new URL(page.url()).pathname.replace(/\/$/, "") || "/";
+  if (landedPath !== requestedPath) {
+    throw new Error(
+      `compare: requested ${url} but landed on ${page.url()} (expected path ${requestedPath}, got ${landedPath})`,
+    );
+  }
+
   await page.evaluate(() => document.fonts.ready);
   return page.screenshot({ fullPage: true, animations: "disabled", caret: "hide" });
 }
