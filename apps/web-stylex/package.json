@@ -7,7 +7,9 @@
     "serve": "vite preview",
     "dev": "vite dev",
     "wrangler:dev": "wrangler dev --port 3002 --inspector-port 9232",
-    "test": "vitest run"
+    "test": "vitest run",
+    "compare": "playwright test -c compare/playwright.config.ts --project=compare && bun run compare/report.ts",
+    "compare:update-auth": "playwright test -c compare/playwright.config.ts --project=auth"
   },
   "dependencies": {
     "@base-ui/react": "^1.0.0",
@@ -46,6 +48,7 @@
     "@cloudflare/vite-plugin": "^1.20.1",
     "@interviews-tool/config": "workspace:*",
     "@interviews-tool/web-ui": "workspace:*",
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "catalog:",
     "@tanstack/react-query-devtools": "^5.91.1",
     "@tanstack/react-router-devtools": "^1.141.1",
@@ -53,10 +56,14 @@
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
     "@testing-library/user-event": "^14.6.6",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "19.2.7",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "catalog:",
     "jsdom": "^26.0.0",
+    "pixelmatch": "^7.2.0",
+    "pngjs": "^7.0.0",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vite-tsconfig-paths": "^5.1.4",
