@@ -72,47 +72,126 @@ really is an untouched clone. Client JS does **not** match:
 - raw: web 1,355,444 vs web-stylex 1,369,007 → **+13,563 bytes (+1.0%)**
 - gzip: web 399,410 vs web-stylex 402,043 → **+2,633 bytes (+0.7%)**
 
-This is a real, reproducible divergence, not noise: two consecutive cold builds of
-each app individually produced byte-identical sizes (see "Hash instability" below),
-and the gap between the two apps was identical (down to the byte) across both
-build runs.
+**Update (2026-08-28, HEAD `39dad38`):** a follow-up elimination experiment
+strengthened the evidence for this divergence and closed off most of the candidate
+causes. See "Divergence evidence and elimination experiment" immediately below —
+and, more importantly, "Comparison methodology for Phase 5" further down, which
+changes how this whole document should be used.
 
-Per-file comparison of `dist/client/assets/*.js` shows every chunk is byte-identical
-in size between the two apps **except two**: the `external-*.js` vendor chunk
-(159,576 B in web vs 169,055 B in web-stylex, +9,479 B) and the `main-*.js` entry
-chunk (985,803 B vs 989,887 B, +4,084 B). Together that accounts for the full
-13,563-byte gap. `grep`-ing both chunks for `pixelmatch`, `pngjs`, `playwright`,
-and `alchemy` (the packages that differ between the two `package.json` files)
-found no matches in either bundle, so nothing from the `compare/` harness or the
-`alchemy` deploy tooling is leaking into the client bundle directly.
+### Divergence evidence and elimination experiment
 
-**Root-cause investigation:** `src/` is byte-identical, both apps resolve from the
-same root `bun.lock`, and `@cloudflare/vite-plugin`/`wrangler` resolve to the exact
-same versions (`1.20.1` / `4.58.0`) for both apps. The only other difference found
-is `wrangler.jsonc`: `apps/web`'s has a `name` of `hiring-tool-web` and a
-production `routes` block pointing at the real `tapuy.dev` / `www.tapuy.dev` zones;
-`apps/web-stylex`'s has `name: hiring-tool-web-stylex` and **no** `routes` block at
-all. I attempted to verify this by temporarily mirroring `web`'s `routes` block
-into `web-stylex`'s `wrangler.jsonc` and rebuilding — the harness's safety
-classifier blocked the subsequent `bun run build` (it treats edits that add
-real production routing config as sensitive), so I reverted the file
-(`git diff -- apps/web-stylex/wrangler.jsonc` is empty) before completing that
-experiment. **This correlation is therefore observed but not proven**: the
-`routes`/`name` divergence in `wrangler.jsonc` is the only structural difference
-between the two app configs I could find that plausibly explains a change in
-`@cloudflare/vite-plugin`'s client-side output, but I could not run the controlled
-A/B rebuild to confirm it caused the size delta.
+**The divergence is real and exactly reproducible.** Three independent cold builds
+were run per app: `rm -rf dist node_modules/.vite .tanstack && NODE_ENV=production
+bun run build`, then `find dist/client -name '*.js' -exec cat {} + | wc -c` (and the
+`| gzip -c | wc -c` equivalent). Within-app variance across all three runs was
+**exactly zero**, raw and gzip, for both apps. The between-app gap was **exactly
++13,563 B on every single run**. This refutes build non-determinism as an
+explanation — not merely weakens it — and supersedes this document's earlier
+"two consecutive builds" note with a third, independently confirming run.
+
+**The gap is localised to two chunks, and nothing extra is being emitted.** Both
+apps emit the same 14 client JS chunks — no extra chunk in either app. Per-file
+comparison of `dist/client/assets/*.js` shows every chunk byte-identical in size
+between the two apps **except two**: the `external-*.js` vendor chunk (159,576 B in
+web vs 169,055 B in web-stylex, **+9,479 B**) and the `main-*.js` entry chunk
+(985,803 B vs 989,887 B, **+4,084 B**). Together that accounts for the full
+13,563-byte gap, exactly. `grep`-ing both chunks for `pixelmatch`, `pngjs`,
+`playwright`, and `alchemy` (the packages that differ between the two
+`package.json` files) found no matches in either bundle, so nothing from the
+`compare/` harness or the `alchemy` deploy tooling is leaking into the client
+bundle directly.
+
+**The `package.json` dependency graph is eliminated as the cause.** A controlled
+elimination was run on `apps/web-stylex` only (`apps/web` untouched throughout),
+rebuilding after each cumulative change with the same command and byte-count
+method as above:
+
+| #        | Change (cumulative)                                                      | Client JS raw (B) |   Gap closed?    |
+| -------- | ------------------------------------------------------------------------ | ----------------: | :--------------: |
+| Baseline | committed `package.json`                                                 |         1,369,007 |        —         |
+| P1       | remove `wrangler` devDependency                                          |         1,369,007 | No — zero change |
+| P2       | P1 + add back `alchemy` devDependency                                    |         1,369,007 | No — zero change |
+| P3       | P2 + remove `@playwright/test`, `pixelmatch`, `pngjs` (+ their `@types`) |         1,369,007 | No — zero change |
+
+All three permutations reproduced **exactly** 1,369,007 B — byte for byte identical
+to the unmodified clone. (P1 in isolation doesn't fully remove `wrangler` from the
+resolved dependency tree — `@cloudflare/vite-plugin` pulls it in as a peer
+dependency, still satisfied via `apps/web`'s own direct dependency on the shared
+`bun.lock` — but P2 and P3 layer further, different changes onto the same
+dependency surface and still reproduce the identical byte count, so this doesn't
+weaken the conclusion.) `wrangler`/`alchemy`/test-tooling presence or absence in
+`package.json` has no effect on `@cloudflare/vite-plugin`'s client output for this
+build.
+
+**What remains untested, and why it stays that way here:** the only structural
+difference between the two apps' build-relevant config that was never eliminated is
+`wrangler.jsonc`: `apps/web`'s has `name: hiring-tool-web` and a production
+`routes` block pointing at the real `tapuy.dev` / `www.tapuy.dev` zones;
+`apps/web-stylex`'s has `name: hiring-tool-web-stylex` and no `routes` block at
+all, and the `routes` array and the `name` field have not been isolated from each
+other. A prior attempt to mirror `web`'s `routes` block into `web-stylex`'s
+`wrangler.jsonc` and rebuild was blocked by the harness's safety classifier (it
+treats edits that add real production routing config as sensitive) and was
+reverted before completing (`git diff -- apps/web-stylex/wrangler.jsonc` empty).
+Editing `wrangler.jsonc` is out of scope for this task too. **The `routes`/`name`
+attribution therefore remains unproven — but with the entire `package.json`
+dependency graph now eliminated, it is the leading remaining candidate rather than
+one guess among several.**
+
+**Rejected fix, on purpose:** copying `apps/web`'s `routes` array into
+`apps/web-stylex`'s `wrangler.jsonc` would probably make the byte counts agree.
+This was deliberately not done. `apps/web-stylex` is not a deployed app; giving it
+a `routes` block pointing at `tapuy.dev` / `www.tapuy.dev` would make a
+non-deployed app capable of claiming real production traffic on those zones. That
+risk is not worth taking for tidier baseline numbers — especially now that the
+methodology change below means the two apps' byte counts no longer need to agree
+for Phase 5 to proceed correctly.
 
 The same divergence also shows up in build **time** (see below), which is
 consistent with — but again does not prove — the same root cause: `web-stylex`'s
 routeless config is consistently faster to build than `web`'s.
 
-This mismatch pre-dates any StyleX work (`web-stylex` at this commit is a plain
+This divergence pre-dates any StyleX work (`web-stylex` at this commit is a plain
 clone) and is unrelated to Tailwind vs. StyleX; it should not be attributed to the
-migration in any future write-up. Whoever runs Phase 5's "before/after" comparison
-should either resolve this config divergence first, or subtract this known
-~13.5 KB raw / ~2.6 KB gzip baseline offset before crediting StyleX with any CSS/JS
-delta measured against `web-stylex`.
+migration in any future write-up. Per "Comparison methodology for Phase 5" below,
+it also should not be _subtracted_ from a future cross-app comparison — the
+correct fix is not to make cross-app byte comparisons at all.
+
+## Comparison methodology for Phase 5 — read this before measuring any StyleX delta
+
+**Cross-app byte comparison (`apps/web` vs `apps/web-stylex`) is confounded and
+must not be used to judge whether StyleX changed the bundle.** The 13,563 B raw /
+2,633 B gzip client-JS gap documented above is real, exactly reproducible across
+three independent runs, and not caused by build non-determinism or the
+`package.json` dependency graph — but its root cause is still unproven (leading
+candidate: `wrangler.jsonc`'s `routes` array and/or `name` field, see above). Any
+comparison that puts `apps/web`'s numbers on one side and `apps/web-stylex`'s on
+the other carries this confound, whether or not anyone remembers to subtract it —
+and subtracting an unproven offset is not a substitute for eliminating it.
+
+**The correct comparison is within `apps/web-stylex`, not across apps:**
+`apps/web-stylex` with Tailwind (this document's baseline — client JS
+**1,369,007 B raw / 402,043 B gzip**, both `measured` above) vs. `apps/web-stylex`
+with StyleX (to be `measured` in Phase 5, after the migration lands on this same
+app). A within-app comparison holds the build configuration — `wrangler.jsonc`,
+`package.json`, port, everything — constant by construction, so the 13,563 B
+confound cannot enter it. No root cause needs to be found for this comparison to
+be valid.
+
+**Consequence: `apps/web-stylex`'s own baseline row is the one that matters** for
+the eventual "did StyleX shrink the bundle" claim — specifically the Client JS raw
+and gzip figures in the Results table above. `apps/web`'s numbers remain useful
+context (they're the reference implementation the clone was made from, and they're
+what confirmed the CSS/styling layer is untouched) but they are **not** the
+comparison baseline for any StyleX delta.
+
+**The visual-diff harness (`apps/web-stylex/compare/`) is unaffected by any of
+this.** It compares rendered pixels between the two apps' live pages, not build
+output bytes, and its result today is a **0.00% diff**. That result shows the two
+apps render identically regardless of how their JS is chunked or packaged — it is
+a separate, orthogonal instrument from the byte-count metrics in this document,
+and Phase 5 should keep using it to confirm nothing visually broke, independent of
+which bundle-size comparison is used.
 
 ## Build-time gap between the two apps
 
