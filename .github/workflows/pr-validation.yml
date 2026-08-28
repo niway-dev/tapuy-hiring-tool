@@ -48,3 +48,15 @@ jobs:
       - name: Build backend
         working-directory: apps/server
         run: bun run build
+
+      - name: Build frontend (web-stylex)
+        working-directory: apps/web-stylex
+        env:
+          VITE_SERVER_URL: https://placeholder.example.com
+          DATABASE_URL: postgresql://placeholder:placeholder@localhost:5432/placeholder
+          BETTER_AUTH_SECRET: placeholder-secret-for-build-validation
+        run: bun run build
+
+      - name: Test frontend (web-stylex)
+        working-directory: apps/web-stylex
+        run: bun run test
