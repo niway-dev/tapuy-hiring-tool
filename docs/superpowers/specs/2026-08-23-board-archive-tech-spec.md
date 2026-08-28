@@ -1,239 +1,239 @@
 # Tech spec FINAL — Board view + Archive
 
-**Proyecto:** Tapuy · `/hiring-processes`
-**Fecha de auditoría:** 2026-08-23 (evidencia con `archivo:línea` contra `main` @ `d6648c3`)
-**Inputs de diseño (fuente de verdad UX):** BUILD-spec (board + archived, pegado en conversación), capturas Dashboard v2, `documentation/tapuy-theme.css`, `documentation/DESIGN.md`
-**Estado:** cerrado. Las Q1–Q10 del borrador están respondidas con evidencia; las decisiones viven en §8.
+**Project:** Tapuy · `/hiring-processes`
+**Audit date:** 2026-08-23 (evidence with `file:line` against `main` @ `d6648c3`)
+**Design inputs (UX source of truth):** BUILD-spec (board + archived, pasted in conversation), Dashboard v2 screenshots, `documentation/tapuy-theme.css`, `documentation/DESIGN.md`
+**Status:** closed. Q1–Q10 from the draft are answered with evidence; the decisions live in §8.
 
-> Este documento reemplaza al borrador. Donde el borrador asumía algo que el código contradice, manda esta versión.
-
----
-
-## 0. Correcciones de contexto — el stack real
-
-El borrador asumía varias cosas que no son ciertas. Todo lo demás se construye sobre esta tabla:
-
-| Borrador asumía                  | Realidad                                                                                                                                       | Evidencia                                                                                                                                    |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Backend **Hono** + `zValidator`  | **Elysia** en Cloudflare Workers; validación pasando schemas zod directo a `query`/`body` (standard-schema) y `t.Object` para params           | `apps/server/src/index.ts:2`, `apps/server/src/routes/hiring-processes.ts:74,118,143`                                                        |
-| Un solo camino de datos          | **Dos caminos**: lectura de lista vía TanStack serverFn → **Prisma** (marcado TEMP), mutaciones vía Eden Treaty → proxy → Elysia → **Drizzle** | `apps/web/src/functions/get-hiring-processes.ts:27-28`, `apps/web/src/lib/client-treaty.ts:4`, `apps/web/src/routes/api/v1/$.ts:12-53`       |
-| Migraciones reversibles          | **No hay migraciones.** El flujo es `bun run db:push` (drizzle-kit push) contra Neon. `out: ./src/migrations` nunca ha existido                | `packages/infra-db/drizzle.config.ts:8`, `README.md:107-110`                                                                                 |
-| Sort server-side existente       | **No existe ningún parámetro de sort.** Orden hardcodeado `updatedAt DESC`; el sort de la tabla es client-side sobre la página actual          | `packages/infra-db/src/repositories/hiring-process.repository.ts:102`, `hiring-process-table.tsx` (`getSortedRowModel` + `manualPagination`) |
-| Filtros/sort/page en URL         | **Nada está en la URL.** Todo es `useState` local; el único `validateSearch` del app es `$id.tsx:42-44` (`{ live }`)                           | `apps/web/src/routes/_authenticated/hiring-processes/index.tsx:72-93`                                                                        |
-| `PATCH /processes/:id`           | No hay ningún PATCH en el codebase; update es `PUT` full-body                                                                                  | `apps/server/src/routes/hiring-processes.ts:123-146`                                                                                         |
-| `counts` server-side             | El header dispara **3 requests** (lista + 2 counts con `limit:1`)                                                                              | `index.tsx:106-118`                                                                                                                          |
-| Popover con floating-ui o nativo | **Base UI** (`@base-ui/react`): `dialog`, `alert-dialog`, `dropdown-menu` (Menu+Positioner), `select` ya en `packages/web-ui`                  | `packages/web-ui/src/components/*.tsx`                                                                                                       |
-| Sistema de toasts a definir      | **Sonner** ya montado, con precedente de `action`                                                                                              | `packages/web-ui/src/components/sonner.tsx`, `apps/web/src/lib/query-client.ts:6-16`                                                         |
-| Strings en inglés directo        | App **internacionalizada (en + es)** con `use-intl`; test de paridad falla si falta una key en cualquiera de los dos                           | `packages/i18n/messages/{en,es}.json`, `packages/i18n/src/__tests__/parity.test.ts:28-41`                                                    |
-| Toggle de tema existente         | `data-theme="dark"` **hardcodeado**; tokens light completos pero inalcanzables                                                                 | `apps/web/src/routes/__root.tsx:115`, `packages/web-ui/src/styles.css:94-139`                                                                |
-| Tests de integración disponibles | El único paquete con tests es `packages/i18n` (vitest). No hay root `test` script ni task en turbo                                             | `packages/i18n/vitest.config.ts`, `package.json:29-51`                                                                                       |
-
-Otros datos duros: monorepo **Bun workspaces + Turborepo**, build de paquetes con **tsdown**, lint **oxlint** / format **oxfmt**, la entidad se llama **HiringProcess** (no "Process"), y ya existe **soft-delete** vía `deletedAt` — `archived` será la _tercera_ marca ortogonal, y toda query debe seguir filtrando `deleted_at IS NULL`.
+> This document replaces the draft. Where the draft assumed something the code contradicts, this version rules.
 
 ---
 
-## 1. Q1–Q10 — respondidas con evidencia
+## 0. Context corrections — the real stack
 
-| #       | Pregunta                                   | Respuesta                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
-| ------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Q1**  | ¿Auto-update de `updatedAt`?               | **Sí, doble.** (a) `$onUpdate(() => new Date())` en el schema (`packages/infra-db/src/utils/timestamps.ts:13-20`); (b) asignación manual `updatedAt: new Date()` en `repository.update()` (`hiring-process.repository.ts:135-138`). No hay trigger de DB. **Consecuencia:** `archive`/`restore` serán métodos de repo dedicados que pasan `updatedAt: sql\`updated_at\``explícito en el`.set()`— un valor explícito gana sobre`$onUpdate`, así I2 se cumple sin tocar el helper compartido. |
-| **Q2**  | ¿Cap del board?                            | **Sin cap.** Herramienta personal, decenas de procesos; el board pide todo activo en una query. El contrato de paginación por columna queda documentado (§3) pero no se implementa ni se defiende con 413.                                                                                                                                                                                                                                                                                  |
-| **Q3**  | ¿Undo de move restaura `updatedAt` exacto? | **No.** El undo es otro cambio de status y avanza `updatedAt` (propuesta del borrador aceptada). Simétricamente: undo de restore re-archiva con `archivedAt = now()` nuevo, no el original. Solo el undo de archive (= restore) es revert exacto porque restore no toca `updatedAt`.                                                                                                                                                                                                        |
-| **Q4**  | ¿Sistema de toasts?                        | **Sonner ya existe y soporta `action` + `duration`.** Se extiende con el patrón Undo (5000 ms). No se añade librería.                                                                                                                                                                                                                                                                                                                                                                       |
-| **Q5**  | ¿Touch/móvil en board?                     | **Sí: móvil = solo menú `⋯`.** DnD HTML5 nativo no dispara en touch y no se agrega librería.                                                                                                                                                                                                                                                                                                                                                                                                |
-| **Q6**  | ¿Primitivos popover/dialog?                | **Base UI.** `MoveMenu` = `DropdownMenu` (Base UI Menu + Positioner, ya con roving focus y Escape). `ArchiveDialog` = `AlertDialog` existente (precedente: `delete-confirm-dialog.tsx`). Cero dependencias nuevas.                                                                                                                                                                                                                                                                          |
-| **Q7**  | ¿Delete en archivados?                     | **Sí**, mismo flujo actual (`delete-confirm-dialog.tsx` + soft-delete). Un archivado borrado desaparece de Archived (todas las queries filtran `deletedAt IS NULL`).                                                                                                                                                                                                                                                                                                                        |
-| **Q8**  | ¿`counts` en el detalle?                   | **No en esta fase** (confirmado; el detalle no los necesita).                                                                                                                                                                                                                                                                                                                                                                                                                               |
-| **Q9**  | ¿Rate limit en moves?                      | **Ninguno.** Mutaciones baratas, un solo usuario.                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| **Q10** | ¿Multi-currency en min/max?                | **Se filtra sobre el valor crudo como hoy** (`salaryMin/salaryMax` sobre `salary` integer, sin normalizar `/mo` vs `/hr` vs `/yr`). Nota: hoy solo existen `monthly` y `hourly` (`SALARY_RATE_TYPES`); el `/yr` del mock **no existe** en el modelo — la card de Northwind con `$68,000 / yr` es aspiracional del mock, no del dato.                                                                                                                                                        |
+The draft assumed several things that aren't true. Everything else is built on this table:
 
-### Hallazgos extra que el borrador no vio
+| The draft assumed                  | The reality is                                                                                                                         | Evidence                                                                                                                                     |
+| ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Backend **Hono** + `zValidator`    | **Elysia** on Cloudflare Workers; validation passes zod schemas directly to `query`/`body` (standard-schema) and `t.Object` for params | `apps/server/src/index.ts:2`, `apps/server/src/routes/hiring-processes.ts:74,118,143`                                                        |
+| A single data path                 | **Two paths**: list reads via TanStack serverFn → **Prisma** (marked TEMP), mutations via Eden Treaty → proxy → Elysia → **Drizzle**   | `apps/web/src/functions/get-hiring-processes.ts:27-28`, `apps/web/src/lib/client-treaty.ts:4`, `apps/web/src/routes/api/v1/$.ts:12-53`       |
+| Reversible migrations              | **There are no migrations.** The flow is `bun run db:push` (drizzle-kit push) against Neon. `out: ./src/migrations` has never existed  | `packages/infra-db/drizzle.config.ts:8`, `README.md:107-110`                                                                                 |
+| An existing server-side sort       | **No sort parameter exists.** Order is hardcoded `updatedAt DESC`; the table's sort is client-side over the current page               | `packages/infra-db/src/repositories/hiring-process.repository.ts:102`, `hiring-process-table.tsx` (`getSortedRowModel` + `manualPagination`) |
+| Filters/sort/page in the URL       | **Nothing is in the URL.** Everything is local `useState`; the app's only `validateSearch` is `$id.tsx:42-44` (`{ live }`)             | `apps/web/src/routes/_authenticated/hiring-processes/index.tsx:72-93`                                                                        |
+| `PATCH /processes/:id`             | There is no PATCH anywhere in the codebase; update is a full-body `PUT`                                                                | `apps/server/src/routes/hiring-processes.ts:123-146`                                                                                         |
+| Server-side `counts`               | The header fires **3 requests** (list + 2 counts with `limit:1`)                                                                       | `index.tsx:106-118`                                                                                                                          |
+| Popover with floating-ui or native | **Base UI** (`@base-ui/react`): `dialog`, `alert-dialog`, `dropdown-menu` (Menu+Positioner), `select` already in `packages/web-ui`     | `packages/web-ui/src/components/*.tsx`                                                                                                       |
+| A toast system still to be decided | **Sonner** is already wired up, with precedent for `action`                                                                            | `packages/web-ui/src/components/sonner.tsx`, `apps/web/src/lib/query-client.ts:6-16`                                                         |
+| Strings directly in English        | The app is **internationalized (en + es)** with `use-intl`; the parity test fails if a key is missing from either                      | `packages/i18n/messages/{en,es}.json`, `packages/i18n/src/__tests__/parity.test.ts:28-41`                                                    |
+| An existing theme toggle           | `data-theme="dark"` is **hardcoded**; light tokens are complete but unreachable                                                        | `apps/web/src/routes/__root.tsx:115`, `packages/web-ui/src/styles.css:94-139`                                                                |
+| Integration tests available        | The only package with tests is `packages/i18n` (vitest). There is no root `test` script or turbo task                                  | `packages/i18n/vitest.config.ts`, `package.json:29-51`                                                                                       |
 
-1. **El orden de estados en dominio no es el del pipeline.** `HIRING_PROCESS_STATUS_VALUES` (que alimenta el pgEnum — no se debe reordenar) y `HIRING_PROCESS_STATUS_INFO[x].order` ponen `rejected=4 … offer-made=7, offer-accepted=8`. Se añade una constante nueva `HIRING_PROCESS_STATUS_ORDER` con el orden de pipeline del spec; `order` de INFO queda intacto para no romper consumidores.
-2. **Las categorías ya coinciden con el spec.** `category: "active"` = exactamente OPEN (`first-contact, ongoing, on-hold, offer-made`) y `"terminal"` = CLOSED. No hay que migrar categorías.
-3. **Bug en `STATUS_TRANSITIONS`**: `offer-made → []` ("Terminal status") y nada transiciona a `offer-accepted` (`hiring-process-status.ts:129-134`). El board permite mover a cualquier estado, así que el endpoint de move **no** valida transiciones; la tabla se corrige de paso para que deje de mentir.
-4. **`PUT /hiring-processes/:id` puede anular `salary`/`jobTitle` sin querer**: `updateHiringProcessSchema === createHiringProcessSchema` y el repo Drizzle esparce keys `undefined` (`update-hiring-process.ts:14-30`). Conocido, fuera de alcance; el nuevo `PATCH :id/status` no pasa por ahí.
-5. **`repository.update()` no filtra `deletedAt IS NULL`** (`hiring-process.repository.ts:143`), a diferencia de `findById`/`delete`. Se corrige en PR 1 (una línea) porque los métodos nuevos sí lo filtran y la inconsistencia se volvería visible.
-6. **`hiringProcessKeys` no está exportado** de `use-hiring-processes.ts:40-46` — el board necesita cirugía de caché; se exporta.
-7. **No existe ninguna mutación optimista en el repo** — `useReversibleMutation` introduce el primer patrón `onMutate/cancelQueries/onSettled`.
-8. **i18n:** cada string nuevo del BUILD-spec (diálogos, tira de estancados, empty states, leyenda, toasts, "today") entra en `en.json` **y** `es.json` + `bun run generate:types` en `packages/i18n`, o el test de paridad rompe.
+Other hard facts: monorepo **Bun workspaces + Turborepo**, packages built with **tsdown**, lint **oxlint** / format **oxfmt**, the entity is called **HiringProcess** (not "Process"), and **soft-delete** already exists via `deletedAt` — `archived` will be the _third_ orthogonal flag, and every query must keep filtering on `deleted_at IS NULL`.
 
 ---
 
-## 2. Modelo de datos final
+## 1. Q1–Q10 — answered with evidence
 
-### 2.1 Dominio (`packages/domain`) — fuente única
+| #       | Question                                        | Answer                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ------- | ----------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Q1**  | Auto-update of `updatedAt`?                     | **Yes, doubly so.** (a) `$onUpdate(() => new Date())` in the schema (`packages/infra-db/src/utils/timestamps.ts:13-20`); (b) manual assignment `updatedAt: new Date()` in `repository.update()` (`hiring-process.repository.ts:135-138`). There's no DB trigger. **Consequence:** `archive`/`restore` will be dedicated repo methods that pass an explicit `updatedAt: sql\`updated_at\``in the`.set()`— an explicit value beats`$onUpdate`, so I2 holds without touching the shared helper. |
+| **Q2**  | A cap on the board?                             | **No cap.** Personal tool, dozens of processes; the board requests everything active in one query. The per-column pagination contract is documented (§3) but not implemented and not enforced with a 413.                                                                                                                                                                                                                                                                                    |
+| **Q3**  | Does move's undo restore the exact `updatedAt`? | **No.** The undo is another status change and advances `updatedAt` (the draft's proposal, accepted). Symmetrically: restore's undo re-archives with a new `archivedAt = now()`, not the original. Only archive's undo (= restore) is an exact revert, because restore doesn't touch `updatedAt`.                                                                                                                                                                                             |
+| **Q4**  | A toast system?                                 | **Sonner already exists and supports `action` + `duration`.** It's extended with the Undo pattern (5000 ms). No library is added.                                                                                                                                                                                                                                                                                                                                                            |
+| **Q5**  | Touch/mobile on the board?                      | **Yes: mobile = `⋯` menu only.** Native HTML5 DnD doesn't fire on touch, and no library is added.                                                                                                                                                                                                                                                                                                                                                                                            |
+| **Q6**  | Popover/dialog primitives?                      | **Base UI.** `MoveMenu` = `DropdownMenu` (Base UI Menu + Positioner, already with roving focus and Escape). `ArchiveDialog` = the existing `AlertDialog` (precedent: `delete-confirm-dialog.tsx`). Zero new dependencies.                                                                                                                                                                                                                                                                    |
+| **Q7**  | Delete on archived items?                       | **Yes**, same flow as today (`delete-confirm-dialog.tsx` + soft-delete). A deleted archived item disappears from Archived (every query filters on `deletedAt IS NULL`).                                                                                                                                                                                                                                                                                                                      |
+| **Q8**  | `counts` in the detail view?                    | **Not in this phase** (confirmed; the detail view doesn't need them).                                                                                                                                                                                                                                                                                                                                                                                                                        |
+| **Q9**  | Rate limit on moves?                            | **None.** Cheap mutations, a single user.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| **Q10** | Multi-currency in min/max?                      | **Filters on the raw value as it does today** (`salaryMin/salaryMax` over the `salary` integer, with no normalization of `/mo` vs `/hr` vs `/yr`). Note: today only `monthly` and `hourly` exist (`SALARY_RATE_TYPES`); the mock's `/yr` **doesn't exist** in the model — the Northwind card showing `$68,000 / yr` is aspirational in the mock, not in the data.                                                                                                                            |
+
+### Extra findings the draft didn't see
+
+1. **The domain's status order isn't the pipeline's.** `HIRING_PROCESS_STATUS_VALUES` (which feeds the pgEnum — must not be reordered) and `HIRING_PROCESS_STATUS_INFO[x].order` put `rejected=4 … offer-made=7, offer-accepted=8`. A new constant `HIRING_PROCESS_STATUS_ORDER` is added with the spec's pipeline order; INFO's `order` stays intact so as not to break consumers.
+2. **The categories already match the spec.** `category: "active"` = exactly OPEN (`first-contact, ongoing, on-hold, offer-made`) and `"terminal"` = CLOSED. No categories need migrating.
+3. **Bug in `STATUS_TRANSITIONS`**: `offer-made → []` ("Terminal status") and nothing transitions to `offer-accepted` (`hiring-process-status.ts:129-134`). The board allows moving to any status, so the move endpoint does **not** validate transitions; the table is fixed along the way so it stops lying.
+4. **`PUT /hiring-processes/:id` can unintentionally null out `salary`/`jobTitle`**: `updateHiringProcessSchema === createHiringProcessSchema` and the Drizzle repo spreads `undefined` keys (`update-hiring-process.ts:14-30`). Known, out of scope; the new `PATCH :id/status` doesn't go through there.
+5. **`repository.update()` doesn't filter `deletedAt IS NULL`** (`hiring-process.repository.ts:143`), unlike `findById`/`delete`. Fixed in PR 1 (one line) because the new methods do filter it and the inconsistency would become visible.
+6. **`hiringProcessKeys` isn't exported** from `use-hiring-processes.ts:40-46` — the board needs cache surgery; it gets exported.
+7. **No optimistic mutation exists anywhere in the repo** — `useReversibleMutation` introduces the first `onMutate/cancelQueries/onSettled` pattern.
+8. **i18n:** every new string from the BUILD-spec (dialogs, stale strip, empty states, legend, toasts, "today") goes into `en.json` **and** `es.json` + `bun run generate:types` in `packages/i18n`, or the parity test breaks.
+
+---
+
+## 2. Final data model
+
+### 2.1 Domain (`packages/domain`) — single source of truth
 
 ```ts
-// constants/hiring-process-status.ts (se AÑADE; no se toca HIRING_PROCESS_STATUS_VALUES)
+// constants/hiring-process-status.ts (ADDED; HIRING_PROCESS_STATUS_VALUES is untouched)
 export const HIRING_PROCESS_STATUS_ORDER = [
   "first-contact", "ongoing", "on-hold", "offer-made",
   "offer-accepted", "hired", "rejected", "dropped-out",
 ] as const satisfies readonly HiringProcessStatus[];
 export const OPEN_STATUSES = HIRING_PROCESS_STATUS_ORDER.slice(0, 4);   // === category "active"
 export const CLOSED_STATUSES = HIRING_PROCESS_STATUS_ORDER.slice(4);    // === category "terminal"
-export function statusPipelineIndex(s: HiringProcessStatus): number;    // criterio de sort de la columna Status
+export function statusPipelineIndex(s: HiringProcessStatus): number;    // sort criterion for the Status column
 
-// constants/archive-reason.ts (nuevo)
+// constants/archive-reason.ts (new)
 export const ARCHIVE_REASONS = { NO_REPLY: "no-reply", THEY_PASSED: "they-passed",
   I_WITHDREW: "i-withdrew", ROLE_CLOSED: "role-closed" } as const;
 
-// constants/stale.ts (nuevo)
+// constants/stale.ts (new)
 export const STALE_DAYS = 45;
 export function isStaleProcess(p: { status; updatedAt; archivedAt? }, now: Date): boolean; // OPEN + !archived + >45d
-export function formatAge(date: Date, now: Date): string;  // "today" | "4d" | "2mo" | "1y" — la UI traduce solo "today"
+export function formatAge(date: Date, now: Date): string;  // "today" | "4d" | "2mo" | "1y" — the UI only translates "today"
 ```
 
-`hiringProcessBaseSchema` gana `archivedAt: z.coerce.date().nullable().optional()` y `archiveReason: z.enum(ARCHIVE_REASON_VALUES).nullable().optional()` (mismo patrón que `deletedAt`).
+`hiringProcessBaseSchema` gains `archivedAt: z.coerce.date().nullable().optional()` and `archiveReason: z.enum(ARCHIVE_REASON_VALUES).nullable().optional()` (same pattern as `deletedAt`).
 
-### 2.2 DB (`packages/infra-db`, tabla `interviews_tool_hiring_process`)
+### 2.2 DB (`packages/infra-db`, table `interviews_tool_hiring_process`)
 
 ```ts
-archivedAt: timestamp("archived_at"),                 // null = activo
-archiveReason: archiveReasonEnum("archive_reason"),   // pgEnum "archive_reason", null salvo archivado
+archivedAt: timestamp("archived_at"),                 // null = active
+archiveReason: archiveReasonEnum("archive_reason"),   // pgEnum "archive_reason", null unless archived
 ```
 
-- Índice nuevo: `hiring_process_user_archived_idx` on `(user_id, archived_at)`. Con volúmenes de decenas de filas no se añaden los índices parciales del borrador (YAGNI).
-- **CHECK** `(archived_at IS NULL) = (archive_reason IS NULL)` vía `check()` de drizzle (primer CHECK del repo; drizzle-kit 0.31 lo soporta en push). Si `db:push` no lo aplicara limpio, el invariante queda garantizado igualmente por los métodos de repo (única vía de escritura).
-- **Sin migración**: se aplica con `bun run db:push` (aditivo: dos columnas nullable + enum + índice). Rollback = revertir el schema y push de nuevo.
-- `packages/infra-prisma-db/prisma/schema.prisma` queda desactualizado hasta un `db:pull`; ver decisión D1.
+- New index: `hiring_process_user_archived_idx` on `(user_id, archived_at)`. With volumes of dozens of rows, the draft's partial indexes aren't added (YAGNI).
+- **CHECK** `(archived_at IS NULL) = (archive_reason IS NULL)` via drizzle's `check()` (the repo's first CHECK; drizzle-kit 0.31 supports it on push). If `db:push` doesn't apply it cleanly, the invariant is still guaranteed by the repo methods (the only write path).
+- **No migration**: applied with `bun run db:push` (additive: two nullable columns + enum + index). Rollback = revert the schema and push again.
+- `packages/infra-prisma-db/prisma/schema.prisma` stays out of date until a `db:pull`; see decision D1.
 
-### 2.3 Invariantes (con su mecanismo real)
+### 2.3 Invariants (with their real mechanism)
 
-| #   | Regla                                               | Mecanismo                                                                                                                 |
-| --- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| I1  | `archivedAt IS NULL ⇔ archiveReason IS NULL`        | CHECK en DB + los métodos `archive`/`restore` escriben siempre ambos                                                      |
-| I2  | Archivar/restaurar no tocan `status` ni `updatedAt` | Métodos dedicados con `updatedAt: sql\`updated_at\``explícito (derrota`$onUpdate`); jamás pasan por `repository.update()` |
-| I3  | Cambiar status sí actualiza `updatedAt`             | El move usa `repository.update()` existente (manual + `$onUpdate`)                                                        |
-| I4  | Scope Active nunca devuelve archivados              | `buildFilterConditions` añade `archived_at IS NULL` por defecto (scope es parte de los filtros, no opt-in del caller)     |
-| I5  | Sort por status = índice de pipeline                | `array_position(ARRAY[...orden]::text[], status::text)` en SQL; `statusPipelineIndex` en cliente                          |
-| I6  | Nada resucita soft-deleted                          | Todos los métodos nuevos incluyen `deleted_at IS NULL`; se corrige `update()` que hoy no lo hace                          |
+| #   | Rule                                                | Mechanism                                                                                                                          |
+| --- | --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| I1  | `archivedAt IS NULL ⇔ archiveReason IS NULL`        | CHECK in the DB + the `archive`/`restore` methods always write both                                                                |
+| I2  | Archive/restore don't touch `status` or `updatedAt` | Dedicated methods with an explicit `updatedAt: sql\`updated_at\``(defeats`$onUpdate`); they never go through `repository.update()` |
+| I3  | Changing status does update `updatedAt`             | Move uses the existing `repository.update()` (manual + `$onUpdate`)                                                                |
+| I4  | The Active scope never returns archived items       | `buildFilterConditions` adds `archived_at IS NULL` by default (scope is part of the filters, not a caller opt-in)                  |
+| I5  | Sort by status = pipeline index                     | `array_position(ARRAY[...order]::text[], status::text)` in SQL; `statusPipelineIndex` on the client                                |
+| I6  | Nothing resurrects soft-deleted rows                | Every new method includes `deleted_at IS NULL`; `update()` is fixed since it doesn't do this today                                 |
 
 ---
 
-## 3. API final
+## 3. Final API
 
-Reparto por camino (respeta la arquitectura actual, no la pelea):
+Split by path (respects the current architecture rather than fighting it):
 
-- **Lecturas del dashboard** → TanStack **serverFns** (SSR-friendly; `clientTreaty` usa `window` y no sirve en loaders). Los serverFns llaman use cases con el repo **Drizzle** (decisión D1: se retira el camino Prisma TEMP).
-- **Mutaciones** → **Elysia** vía Eden Treaty (tipado end-to-end ya montado). También quedan disponibles para mobile.
-- La lógica vive en **use cases** (`packages/application/src/hiring/`), compartida por ambos caminos: `changeHiringProcessStatus`, `archiveHiringProcess`, `restoreHiringProcess`, `getHiringProcessBoard`, `listHiringProcesses` (extendido con scope/stale/sort), `getHiringProcessCounts`.
+- **Dashboard reads** → TanStack **serverFns** (SSR-friendly; `clientTreaty` uses `window` and doesn't work in loaders). The serverFns call use cases with the **Drizzle** repo (decision D1: the Prisma TEMP path is retired).
+- **Mutations** → **Elysia** via Eden Treaty (end-to-end typing already wired up). Also available to mobile.
+- The logic lives in **use cases** (`packages/application/src/hiring/`), shared by both paths: `changeHiringProcessStatus`, `archiveHiringProcess`, `restoreHiringProcess`, `getHiringProcessBoard`, `listHiringProcesses` (extended with scope/stale/sort), `getHiringProcessCounts`.
 
-### 3.1 Lectura de lista — `GET /api/v1/hiring-processes` + serverFn `getHiringProcesses`
+### 3.1 List read — `GET /api/v1/hiring-processes` + serverFn `getHiringProcesses`
 
-Se **extiende** el contrato existente (nombres actuales `page`/`limit`/`statuses`/`salaryDeclared`/`salaryMin`/`salaryMax`; nada de renombrar a `perPage`):
+The existing contract is **extended** (current names `page`/`limit`/`statuses`/`salaryDeclared`/`salaryMin`/`salaryMax`; no renaming to `perPage`):
 
 ```
 scope=active|archived   (default active)
-stale=true              (solo tiene efecto en active: OPEN + updated_at < now()-45d)
+stale=true              (only has an effect on active: OPEN + updated_at < now()-45d)
 sort=updatedAt|companyName|jobTitle|status|salary|archivedAt
 dir=asc|desc            (defaults: active → updatedAt desc · archived → archivedAt desc)
 ```
 
-- `sort=archivedAt` con `scope=active` → 400 (`BadRequestError`).
-- Respuesta: `ApiResponse` actual + `meta.counts: { active, archived, open, closed, stale }` — una query agregada con `COUNT(*) FILTER`, conteos globales del usuario (no del resultado filtrado), en la misma respuesta: los segmentados pintan número al primer render y hoy desaparecen las 2 queries extra de `index.tsx:106-118`.
+- `sort=archivedAt` with `scope=active` → 400 (`BadRequestError`).
+- Response: the current `ApiResponse` + `meta.counts: { active, archived, open, closed, stale }` — one aggregated query with `COUNT(*) FILTER`, global counts for the user (not the filtered result), in the same response: the segmented control paints its number on first render, and the 2 extra queries from `index.tsx:106-118` go away.
 
 ### 3.2 Board — serverFn `getHiringBoard` (+ `GET /api/v1/hiring-processes/board`)
 
 ```
-query:    { salaryDeclared?, salaryMin?, salaryMax? }        // scope siempre active, sin statuses, sin page
-response: { columns: [{ status, count, cards: HiringProcessBase[] }] × 8 en STATUS_ORDER, counts }
+query:    { salaryDeclared?, salaryMin?, salaryMax? }        // scope always active, no statuses, no page
+response: { columns: [{ status, count, cards: HiringProcessBase[] }] × 8 in STATUS_ORDER, counts }
 ```
 
-Una query plana (activos ordenados `updatedAt desc`), agrupación en memoria en el use case. Columnas vacías van con `cards: []`. Las cards son la fila base (no hay proyección aparte: la entidad no arrastra notas). Futuro contrato de paginación por columna: `?status=&page=` — documentado, no implementado (Q2).
+One flat query (active items ordered `updatedAt desc`), grouped in memory in the use case. Empty columns get `cards: []`. The cards are the base row (no separate projection: the entity doesn't carry notes). Future per-column pagination contract: `?status=&page=` — documented, not implemented (Q2).
 
-### 3.3 Mutaciones (Elysia)
+### 3.3 Mutations (Elysia)
 
-| Método  | Ruta                                   | Body         | Reglas                                                                                                           | Respuesta                                                                    |
-| ------- | -------------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| `PATCH` | `/api/v1/hiring-processes/:id/status`  | `{ status }` | 400 si mismo status · 409 (`ConflictError`) si archivado · bump `updatedAt` · **no** valida `STATUS_TRANSITIONS` | `{ data: { process, previous: { status, updatedAt } } }`                     |
-| `POST`  | `/api/v1/hiring-processes/:id/archive` | `{ reason }` | 409 si ya archivado · no toca `status`/`updatedAt`                                                               | `{ data: { process, previous: { archivedAt: null, archiveReason: null } } }` |
-| `POST`  | `/api/v1/hiring-processes/:id/restore` | —            | 409 si no archivado · no toca `updatedAt`                                                                        | `{ data: { process, previous: { archivedAt, archiveReason } } }`             |
+| Method  | Route                                  | Body         | Rules                                                                                                                   | Response                                                                     |
+| ------- | -------------------------------------- | ------------ | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `PATCH` | `/api/v1/hiring-processes/:id/status`  | `{ status }` | 400 if same status · 409 (`ConflictError`) if archived · bumps `updatedAt` · does **not** validate `STATUS_TRANSITIONS` | `{ data: { process, previous: { status, updatedAt } } }`                     |
+| `POST`  | `/api/v1/hiring-processes/:id/archive` | `{ reason }` | 409 if already archived · doesn't touch `status`/`updatedAt`                                                            | `{ data: { process, previous: { archivedAt: null, archiveReason: null } } }` |
+| `POST`  | `/api/v1/hiring-processes/:id/restore` | —            | 409 if not archived · doesn't touch `updatedAt`                                                                         | `{ data: { process, previous: { archivedAt, archiveReason } } }`             |
 
-- 404 si no existe o no es del usuario (patrón actual: ownership en el WHERE, nunca 403). `ConflictError` existe en `apps/server/src/utils/errors.ts:19` pero hay que **registrarlo** en el error handler (`error-handler-plugin.ts:29-35` no lo mapea hoy).
-- `previous` alimenta el Undo; el undo llama el endpoint inverso (move inverso / restore / archive), no un `/undo` genérico.
+- 404 if it doesn't exist or isn't the user's (current pattern: ownership in the WHERE, never 403). `ConflictError` exists in `apps/server/src/utils/errors.ts:19` but it needs to be **registered** in the error handler (`error-handler-plugin.ts:29-35` doesn't map it today).
+- `previous` feeds the Undo; the undo calls the inverse endpoint (inverse move / restore / archive), not a generic `/undo`.
 
 ---
 
 ## 4. Frontend
 
-### 4.1 Estado — todo greenfield en la ruta index
+### 4.1 State — all greenfield on the index route
 
-| Estado                                                                                       | Dónde                                                                                    | Nota                                                                        |
-| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
-| `scope, view, statuses, salaryDeclared, salaryMin, salaryMax, stale, sort, dir, page, limit` | `validateSearch` con zod (primer uso real; precedente hand-rolled en `$id.tsx`)          | Helper único `setSearch(partial)` que borra `page` salvo override explícito |
-| `view` último usado                                                                          | `localStorage` `tapuy:dashboard-view` (convención `tapuy:` de `interaction-draft.ts:28`) | Se lee solo si no viene `?view=`; el forzado de "Show them" **no** lo pisa  |
-| `scope`                                                                                      | URL, sin persistir                                                                       | Cada visita sin param entra en Active                                       |
-| Stale strip dismissed                                                                        | `sessionStorage` `tapuy:stale-dismissed` (primer uso de sessionStorage)                  |                                                                             |
-| `dragId`, menú abierto, diálogo                                                              | `useState` local                                                                         |                                                                             |
+| State                                                                                        | Where                                                                                          | Note                                                                                       |
+| -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `scope, view, statuses, salaryDeclared, salaryMin, salaryMax, stale, sort, dir, page, limit` | `validateSearch` with zod (first real use; hand-rolled precedent in `$id.tsx`)                 | A single `setSearch(partial)` helper that clears `page` unless explicitly overridden       |
+| last-used `view`                                                                             | `localStorage` `tapuy:dashboard-view` (the `tapuy:` convention from `interaction-draft.ts:28`) | Only read when `?view=` isn't present; "Show them"'s forced value does **not** override it |
+| `scope`                                                                                      | URL, not persisted                                                                             | Every visit without the param lands on Active                                              |
+| Stale strip dismissed                                                                        | `sessionStorage` `tapuy:stale-dismissed` (first use of sessionStorage)                         |                                                                                            |
+| `dragId`, open menu, dialog                                                                  | local `useState`                                                                               |                                                                                            |
 
-### 4.2 Datos y mutaciones
+### 4.2 Data and mutations
 
-- **Exportar `hiringProcessKeys`** y añadir `board: (params) => [...all, "board", params]`. `staleTime` 30s para lista y board (hoy la lista usa 10min — se baja: con mutaciones optimistas el caché ya no puede ser tan perezoso). Loader hace `ensureQueryData` solo de la vista activa.
-- **`useReversibleMutation`** (primera mutación optimista del repo): `onMutate` cancela + snapshot de lista y board + patch optimista → `onError` restaura + toast de error del spec → `onSuccess` toast Sonner con `action: Undo`, `duration: 5000` → Undo dispara la mutación inversa (optimista, sin segundo toast) → `onSettled` invalida `hiringProcessKeys.all`. Cola de Sonner tal cual (un Undo nuevo no cancela el anterior).
-- Patch optimista en board: mover card entre `columns[]` respetando `updatedAt desc` (va primera) y ajustar ambos `count`. En lista: si el ítem deja de cumplir el scope, sale de `rows` y `total--`; la refetch rellena.
+- **Export `hiringProcessKeys`** and add `board: (params) => [...all, "board", params]`. `staleTime` of 30s for list and board (the list currently uses 10min — it's lowered: with optimistic mutations the cache can no longer be that lazy). The loader does `ensureQueryData` only for the active view.
+- **`useReversibleMutation`** (the repo's first optimistic mutation): `onMutate` cancels + snapshots list and board + applies the optimistic patch → `onError` restores + shows the spec's error toast → `onSuccess` shows a Sonner toast with `action: Undo`, `duration: 5000` → Undo fires the inverse mutation (optimistic, no second toast) → `onSettled` invalidates `hiringProcessKeys.all`. Sonner's queue as-is (a new Undo doesn't cancel the previous one).
+- Optimistic patch on the board: move the card between `columns[]` respecting `updatedAt desc` (it goes first) and adjust both `count`s. In the list: if the item stops matching the scope, it leaves `rows` and `total--`; the refetch fills it back in.
 
-### 4.3 Componentes (primitivos reales)
+### 4.3 Components (real primitives)
 
 ```
-routes/_authenticated/hiring-processes/index.tsx   validateSearch + loader por vista
-  ├ ControlBar: ScopeSegment (Active N | Archived N, mono) · filtros condicionales · ViewSegment
+routes/_authenticated/hiring-processes/index.tsx   validateSearch + loader per view
+  ├ ControlBar: ScopeSegment (Active N | Archived N, mono) · conditional filters · ViewSegment
   ├ StaleStrip (counts.stale > 0 && !dismissed && scope=active)
-  ├ InterviewTable (existente) + RowActions hover + columnas por scope + edad ámbar si stale
+  ├ InterviewTable (existing) + RowActions hover + columns per scope + amber age if stale
   ├ ProcessBoard → BoardColumn ×8 (STATUS_ORDER) → ProcessCard → MoveMenu (DropdownMenu Base UI)
-  ├ ArchiveDialog (AlertDialog Base UI; chips WHY; preselección: isStale ? no-reply : they-passed)
-  └ EmptyState ×3 (los dos primeros ya existen en index.tsx:143-154,294-301; se añade "Nothing archived")
+  ├ ArchiveDialog (AlertDialog Base UI; WHY chips; preselection: isStale ? no-reply : they-passed)
+  └ EmptyState ×3 (the first two already exist at index.tsx:143-154,294-301; "Nothing archived" is added)
 ```
 
-- DnD HTML5 según BUILD-spec (con `preventDefault` en `dragOver`, `relatedTarget` en `dragLeave`, no-op misma columna). Accesibilidad y touch: el menú `⋯` es el camino completo.
-- "Start live note" en card = patrón existente `navigate({ to: "/hiring-processes/$id", search: { live: true } })` (`hiring-process-table.tsx:179-189`).
-- Tabla scope Archived: `Status when archived` (badge intacto) · `Archived` = `fecha · motivo` (labels vía i18n, no un mapa nuevo en dominio) · acción `Restore` + Delete.
-- Sort de tabla pasa a **server-side** (los headers escriben `sort`/`dir` en la URL); se retira `getSortedRowModel`.
-- **Toggle de tema**: hoy no existe (dark hardcodeado). Entra en PR 4 como tarea pequeña (botón en header, `localStorage` `tapuy:theme`, script anti-FOUC, `data-theme` en `<html>`) porque el checklist exige "verificado en light" y el mock lo muestra.
+- HTML5 DnD per the BUILD-spec (with `preventDefault` on `dragOver`, `relatedTarget` on `dragLeave`, no-op for the same column). Accessibility and touch: the `⋯` menu is the full path.
+- "Start live note" on the card = the existing pattern `navigate({ to: "/hiring-processes/$id", search: { live: true } })` (`hiring-process-table.tsx:179-189`).
+- Archived-scope table: `Status when archived` (badge intact) · `Archived` = `date · reason` (labels via i18n, not a new map in domain) · `Restore` + Delete action.
+- Table sort moves to **server-side** (the headers write `sort`/`dir` to the URL); `getSortedRowModel` is removed.
+- **Theme toggle**: doesn't exist today (dark hardcoded). Added in PR 4 as a small task (header button, `localStorage` `tapuy:theme`, anti-FOUC script, `data-theme` on `<html>`) because the checklist requires "verified in light" and the mock shows it.
 
 ---
 
-## 5. Tests — estrategia realista (no hay infra previa)
+## 5. Tests — realistic strategy (no prior infra)
 
-| Capa                   | Qué                                                                                                                                                                           | Infra                                                                                                                                     |
-| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| Dominio (unit)         | `formatAge` (bordes today/30d/12mo), `isStaleProcess` (terminal ≠ stale, archivado ≠ stale, borde 45d), `STATUS_ORDER`/OPEN/CLOSED coherentes con `category`, archive reasons | vitest nuevo en `packages/domain` (patrón i18n)                                                                                           |
-| infra-db (integración) | I1–I6, counts con mezcla, stale excluye terminales, 409 doble archive (retorno null), cross-user, sort pipeline                                                               | **pglite** (`@electric-sql/pglite` + `drizzle-orm/pglite` + `pushSchema` de `drizzle-kit/api`) — Postgres real en memoria, sin tocar Neon |
-| application (unit)     | use cases nuevos con repos fake in-memory (interfaces ya lo permiten)                                                                                                         | vitest en `packages/application`                                                                                                          |
-| Web                    | Sin RTL/Playwright en esta fase (infra inexistente; coste > valor para un solo usuario). Verificación manual guiada por el checklist del BUILD-spec + smoke en light          | manual                                                                                                                                    |
+| Layer                  | What                                                                                                                                                                        | Infra                                                                                                                                             |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Domain (unit)          | `formatAge` (today/30d/12mo edges), `isStaleProcess` (terminal ≠ stale, archived ≠ stale, 45d edge), `STATUS_ORDER`/OPEN/CLOSED consistent with `category`, archive reasons | new vitest in `packages/domain` (i18n pattern)                                                                                                    |
+| infra-db (integration) | I1–I6, mixed counts, stale excludes terminal statuses, 409 on double archive (null return), cross-user, pipeline sort                                                       | **pglite** (`@electric-sql/pglite` + `drizzle-orm/pglite` + `pushSchema` from `drizzle-kit/api`) — real in-memory Postgres, without touching Neon |
+| application (unit)     | new use cases with fake in-memory repos (interfaces already allow it)                                                                                                       | vitest in `packages/application`                                                                                                                  |
+| Web                    | No RTL/Playwright in this phase (infra doesn't exist; cost > value for a single user). Manual verification guided by the BUILD-spec checklist + a smoke check in light      | manual                                                                                                                                            |
 
-Se añade task `test` a `turbo.json` y script root `test`.
+A `test` task is added to `turbo.json` and a root `test` script.
 
-## 6. Plan de entrega — 4 PRs (el borrador decía 8; se colapsa)
+## 6. Delivery plan — 4 PRs (the draft said 8; it's collapsed)
 
-1. **`feat(db): archive fields + domain foundations`** — constantes (STATUS_ORDER, ARCHIVE_REASONS, STALE_DAYS, formatAge/isStale), schemas, pgEnum + columnas + índice + CHECK, interfaz `IHiringProcessArchiveRepository`, métodos Drizzle (`archive`, `restore`, `counts`, `findBoard`, scope/stale/sort en `findPaginated`), fix `update()` sin `deletedAt`, vitest domain + pglite infra-db, `db:push`. Sin UI. → plan detallado: `docs/superpowers/plans/2026-08-23-pr1-archive-domain-db.md`
-2. **`feat(api): scope, counts, board + move/archive/restore`** — use cases, rutas Elysia (extender GET, board, PATCH status, archive, restore, registrar ConflictError), serverFns (lista→Drizzle+counts, board nuevo). Defaults = comportamiento de hoy: la UI actual sigue igual.
-3. **`feat(web): URL state + control bar + archive flow`** — validateSearch, segmentados scope/vista, filtros condicionales, sort server-side en tabla, RowActions, ArchiveDialog, scope Archived, `useReversibleMutation` + Undo, empty state Archived, i18n en+es.
-4. **`feat(web): board + stale strip + polish`** — board completo (DnD, `⋯`, leyenda), edades, tira de estancados, toggle de tema + pase light, checklist final del BUILD-spec.
+1. **`feat(db): archive fields + domain foundations`** — constants (STATUS_ORDER, ARCHIVE_REASONS, STALE_DAYS, formatAge/isStale), schemas, pgEnum + columns + index + CHECK, `IHiringProcessArchiveRepository` interface, Drizzle methods (`archive`, `restore`, `counts`, `findBoard`, scope/stale/sort in `findPaginated`), fix `update()` missing `deletedAt`, vitest domain + pglite infra-db, `db:push`. No UI. → detailed plan: `docs/superpowers/plans/2026-08-23-pr1-archive-domain-db.md`
+2. **`feat(api): scope, counts, board + move/archive/restore`** — use cases, Elysia routes (extend GET, board, PATCH status, archive, restore, register ConflictError), serverFns (list→Drizzle+counts, new board). Defaults = today's behavior: the current UI stays the same.
+3. **`feat(web): URL state + control bar + archive flow`** — validateSearch, scope/view segmented controls, conditional filters, server-side table sort, RowActions, ArchiveDialog, Archived scope, `useReversibleMutation` + Undo, Archived empty state, i18n en+es.
+4. **`feat(web): board + stale strip + polish`** — full board (DnD, `⋯`, legend), ages, stale strip, theme toggle + light pass, final BUILD-spec checklist.
 
-Cada PR mergeable solo; feature visible desde el PR 3.
+Each PR is mergeable on its own; the feature is visible starting at PR 3.
 
-## 7. Checklist de merge (del BUILD-spec, con dueño)
+## 7. Merge checklist (from the BUILD-spec, with an owner)
 
-- [ ] Archivar/restaurar no altera `status` ni `updatedAt` → test pglite I2 (PR 1)
-- [ ] Ninguna consulta Active devuelve archivados → test pglite I4 (PR 1)
-- [ ] Columna Status ordena por pipeline, no alfabético → test pglite I5 (PR 1)
-- [ ] `dragOver` hace `preventDefault` → code review PR 4
-- [ ] Todo estado alcanzable sin arrastrar (menú `⋯`) → manual PR 4
-- [ ] Mover/archivar/restaurar con Undo 5s → manual PR 3/4
-- [ ] Stale strip ignora terminales → test counts (PR 1) + manual
-- [ ] Cambiar vista/scope/filtro/sort resetea page 1 → helper `setSearch` + manual PR 3
-- [ ] Verificado en light → PR 4
+- [ ] Archive/restore doesn't alter `status` or `updatedAt` → pglite test I2 (PR 1)
+- [ ] No Active query returns archived items → pglite test I4 (PR 1)
+- [ ] The Status column sorts by pipeline, not alphabetically → pglite test I5 (PR 1)
+- [ ] `dragOver` calls `preventDefault` → code review PR 4
+- [ ] Every status reachable without dragging (`⋯` menu) → manual PR 4
+- [ ] Move/archive/restore with a 5s Undo → manual PR 3/4
+- [ ] Stale strip ignores terminal statuses → counts test (PR 1) + manual
+- [ ] Changing view/scope/filter/sort resets to page 1 → `setSearch` helper + manual PR 3
+- [ ] Verified in light → PR 4
 
-## 8. Registro de decisiones
+## 8. Decision log
 
-| #   | Decisión                                                                                                                                                                                                                                                                                                                             | Alternativa descartada                                                                      |
-| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| D1  | **Consolidar lecturas en Drizzle**: el serverFn de lista (Prisma, marcado TEMP) pasa a usar `HiringProcessRepository` de infra-db. `infra-prisma-db` queda congelado como demo: no implementa archive (las capacidades nuevas van en una interfaz aparte `IHiringProcessArchiveRepository`, así Prisma sigue compilando sin tocarse) | Implementar todo ×2 (doble mantenimiento) o borrar el paquete (decisión aparte, no urgente) |
-| D2  | `HIRING_PROCESS_STATUS_ORDER` nuevo; **no** se reordena `HIRING_PROCESS_STATUS_VALUES` (alimenta el pgEnum) ni `INFO.order`                                                                                                                                                                                                          | Reordenar el enum → ALTER TYPE innecesario y riesgo en push                                 |
-| D3  | Move **no** valida `STATUS_TRANSITIONS` (el board permite cualquier destino); se corrige la tabla de transiciones para que refleje la realidad                                                                                                                                                                                       | Validar transiciones → contradice el spec del board                                         |
-| D4  | Sin cap del board, sin rate limit, sin normalización de moneda (Q2/Q9/Q10)                                                                                                                                                                                                                                                           | —                                                                                           |
-| D5  | Nombres de params existentes (`page`, `limit`, `statuses`, `salaryDeclared`…); sort nuevo como `sort`/`dir` con nombres de campo reales (`companyName`, `jobTitle`)                                                                                                                                                                  | Renombrar a `perPage`/`company` → churn sin valor                                           |
-| D6  | Tests: vitest domain/application + pglite infra-db; sin Playwright/RTL en esta fase                                                                                                                                                                                                                                                  | Montar E2E desde cero para un usuario                                                       |
-| D7  | Undo semántico (Q3): move-undo avanza `updatedAt`; restore-undo re-archiva con `archivedAt` nuevo                                                                                                                                                                                                                                    | Tokens de undo con timestamps exactos                                                       |
-| D8  | Toggle de tema entra en PR 4 (pequeño, requerido por "verificado en light" y el mock)                                                                                                                                                                                                                                                | Dejarlo fuera → checklist incumplible                                                       |
+| #   | Decision                                                                                                                                                                                                                                                                                                                            | Alternative discarded                                                                                   |
+| --- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| D1  | **Consolidate reads on Drizzle**: the list serverFn (Prisma, marked TEMP) switches to using infra-db's `HiringProcessRepository`. `infra-prisma-db` stays frozen as a demo: it doesn't implement archive (the new capabilities go into a separate `IHiringProcessArchiveRepository` interface, so Prisma keeps compiling untouched) | Implement everything twice (double maintenance) or delete the package (a separate decision, not urgent) |
+| D2  | New `HIRING_PROCESS_STATUS_ORDER`; `HIRING_PROCESS_STATUS_VALUES` (feeds the pgEnum) and `INFO.order` are **not** reordered                                                                                                                                                                                                         | Reorder the enum → an unnecessary ALTER TYPE and risk on push                                           |
+| D3  | Move does **not** validate `STATUS_TRANSITIONS` (the board allows any destination); the transitions table is fixed to reflect reality                                                                                                                                                                                               | Validate transitions → contradicts the board spec                                                       |
+| D4  | No board cap, no rate limit, no currency normalization (Q2/Q9/Q10)                                                                                                                                                                                                                                                                  | —                                                                                                       |
+| D5  | Existing param names (`page`, `limit`, `statuses`, `salaryDeclared`…); new sort as `sort`/`dir` with real field names (`companyName`, `jobTitle`)                                                                                                                                                                                   | Rename to `perPage`/`company` → churn with no value                                                     |
+| D6  | Tests: vitest domain/application + pglite infra-db; no Playwright/RTL in this phase                                                                                                                                                                                                                                                 | Set up E2E from scratch for one user                                                                    |
+| D7  | Semantic undo (Q3): move-undo advances `updatedAt`; restore-undo re-archives with a new `archivedAt`                                                                                                                                                                                                                                | Undo tokens with exact timestamps                                                                       |
+| D8  | Theme toggle goes into PR 4 (small, required by "verified in light" and the mock)                                                                                                                                                                                                                                                   | Leave it out → checklist can't be satisfied                                                             |
