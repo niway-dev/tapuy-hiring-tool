@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { test, type Page } from "@playwright/test";
 import pixelmatch from "pixelmatch";
 import { PNG } from "pngjs";
@@ -16,6 +16,11 @@ type Result = { id: string; diffPercent: number; width: number; height: number }
 const results: Result[] = [];
 const OUT = "compare/output";
 
+/* Clear stale output before a fresh run: otherwise a smaller run (e.g.
+   COMPARE_ONLY_PUBLIC=1's 12 screenshots) leaves behind diff PNGs from a
+   larger prior run, and a reviewer opening the output folder sees results
+   that no longer correspond to summary.json. */
+rmSync(OUT, { recursive: true, force: true });
 for (const dir of ["baseline", "candidate", "diff"])
   mkdirSync(`${OUT}/${dir}`, { recursive: true });
 
@@ -39,6 +44,19 @@ async function shoot(page: Page, origin: string, path: string, theme: Theme): Pr
   if (landedPath !== requestedPath) {
     throw new Error(
       `compare: requested ${url} but landed on ${page.url()} (expected path ${requestedPath}, got ${landedPath})`,
+    );
+  }
+
+  /* Theme check: the cookie set above is what tells the server which theme
+     to render (see functions/theme.ts). If the cookie's name or domain were
+     ever wrong, every "light" run would silently render dark on both
+     origins and still pixel-diff as identical — a false 0.000% that halves
+     the harness's real coverage without failing anything. Assert the DOM
+     actually landed on the requested theme before trusting the screenshot. */
+  const actualTheme = await page.evaluate(() => document.documentElement.dataset.theme);
+  if (actualTheme !== theme) {
+    throw new Error(
+      `compare: expected data-theme="${theme}" but found "${actualTheme}" on ${url} — the tapuy:theme cookie may not be taking effect`,
     );
   }
 

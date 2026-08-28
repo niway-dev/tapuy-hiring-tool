@@ -14,8 +14,14 @@ export default defineConfig({
   reporter: [["list"]],
   use: {
     headless: true,
-    reducedMotion: "reduce",
-    colorScheme: "dark",
+    /* `reducedMotion` isn't a top-level PlaywrightTestOptions field (it
+       lives on BrowserContextOptions) — it has to go through
+       `contextOptions`, per Playwright's own example for this option. */
+    contextOptions: { reducedMotion: "reduce" },
+    /* No `colorScheme` here: the app doesn't read `prefers-color-scheme`,
+       it keys off the `tapuy:theme` cookie (see themeCookie() in
+       routes.ts). Forcing a browser-level colorScheme would be
+       misleading for the light-theme screenshots. */
   },
   projects: [
     { name: "auth", testMatch: /auth\.setup\.ts/ },
