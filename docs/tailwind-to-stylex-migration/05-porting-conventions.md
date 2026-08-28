@@ -992,7 +992,7 @@ rendered result in a browser, not only in the compare harness.
 `stylex.keyframes` returns a name; you assign it to `animationName` yourself.
 There is no `animate-in` shorthand and no implicit direction.
 
-**Before** — `packages/web-ui/src/components/dialog.tsx:54`:
+**Before** — `packages/web-ui/src/components/dialog.tsx:55`:
 
 ```
 data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 ... duration-100
