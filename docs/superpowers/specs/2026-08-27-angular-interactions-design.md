@@ -1,51 +1,51 @@
-# Spec — Interactions en `apps/angular-web`: paridad con el detalle de React
+# Spec — Interactions in `apps/angular-web`: parity with the React detail page
 
-**Fecha:** 2026-08-27
-**Rama:** `feat/angular-interactions` (desde `main` @ `9e08987`, con el PR #63 ya mergeado)
-**Objetivo:** llevar la feature de Interactions —y el diseño de la página de detalle que la
-contiene— del cliente React (`apps/web`) al cliente Angular (`apps/angular-web`), de forma que las
-dos apps se puedan comparar lado a lado sobre la misma pantalla.
+**Date:** 2026-08-27
+**Branch:** `feat/angular-interactions` (from `main` @ `9e08987`, with PR #63 already merged)
+**Goal:** bring the Interactions feature — and the design of the detail page that
+contains it — from the React client (`apps/web`) to the Angular client (`apps/angular-web`), so that
+the two apps can be compared side by side on the same screen.
 
-`apps/web` sigue siendo la app de producción. No se borra nada, y su comportamiento no cambia.
-
----
-
-## 0. Por qué existe este documento
-
-El cliente Angular de la fase 1 funciona, pero su página de detalle no se parece a la de React, y
-eso hace que comparar los dos enfoques (signals vs hooks, `httpResource` vs TanStack, Reactive Forms
-vs react-hook-form) sea un ejercicio teórico. Con la misma pantalla delante, la comparación es real.
-
-La feature completa en React son **~1.780 líneas repartidas en 11 archivos** más un spec previo
-(`documentation/CAPTURE-V2.md`). Este documento diseña **la feature entera** para que la arquitectura
-sea coherente de principio a fin, y marca qué se construye ahora y qué después.
+`apps/web` remains the production app. Nothing gets deleted, and its behavior doesn't change.
 
 ---
 
-## 1. Alcance
+## 0. Why this document exists
 
-### Fase A — este spec y el plan que lo acompaña
+The phase 1 Angular client works, but its detail page doesn't look like React's, and
+that makes comparing the two approaches (signals vs hooks, `httpResource` vs TanStack, Reactive Forms
+vs react-hook-form) a theoretical exercise. With the same screen in front of us, the comparison is real.
 
-| Bloque                      | Contenido                                                                                                                           |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
-| **A. Rediseño del detalle** | Card de cabecera (título, job title, badge de estado, acciones) y fila de stats: Salary · Interactions · Created · Last updated     |
-| **B. Timeline**             | Lista de interacciones con badge de tipo, fecha absoluta, título opcional, contenido markdown renderizado, y acciones editar/borrar |
-| **C. Composer rápido**      | Campo "What just happened?" + botón Log; Enter envía; crea una interacción de tipo `note`                                           |
-
-### Fases posteriores — diseñadas aquí, construidas después
-
-| Bloque                | Contenido                                                                                                               | Por qué se aplaza                                                                             |
-| --------------------- | ----------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
-| **D. "Log it after"** | Drafts con autosave y restore, tabs Write/Preview, toolbar markdown, slash-menu `/`, plantillas por tipo de interacción | ~600 líneas en React; depende de B para tener dónde escribir                                  |
-| **E. Live note**      | Modo pantalla completa, reloj corriendo, panel de preguntas, hotkey `L`, autosave continuo                              | ~470 líneas; la pieza más compleja, y la que más se beneficia de que B y C ya estén asentados |
-
-### Fuera de alcance (permanente en este spec)
-
-i18n (la app Angular es monolingüe por ahora), theme toggle, board, company-details.
+The full feature in React is **~1,780 lines spread across 11 files** plus a prior spec
+(`documentation/CAPTURE-V2.md`). This document designs **the entire feature** so the architecture
+is coherent end to end, and marks what gets built now and what later.
 
 ---
 
-## 2. Realidad del backend (verificada contra el servidor en marcha)
+## 1. Scope
+
+### Phase A — this spec and the plan that accompanies it
+
+| Block                  | Content                                                                                                                   |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **A. Detail redesign** | Header card (title, job title, status badge, actions) and a stats row: Salary · Interactions · Created · Last updated     |
+| **B. Timeline**        | List of interactions with a type badge, absolute date, optional title, rendered markdown content, and edit/delete actions |
+| **C. Quick composer**  | "What just happened?" field + Log button; Enter submits; creates an interaction of type `note`                            |
+
+### Later phases — designed here, built later
+
+| Block                 | Content                                                                                                                | Why it's deferred                                                                               |
+| --------------------- | ---------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| **D. "Log it after"** | Drafts with autosave and restore, Write/Preview tabs, markdown toolbar, `/` slash-menu, templates per interaction type | ~600 lines in React; depends on B to have somewhere to write                                    |
+| **E. Live note**      | Full-screen mode, running clock, questions panel, `L` hotkey, continuous autosave                                      | ~470 lines; the most complex piece, and the one that benefits most from B and C already settled |
+
+### Out of scope (permanently, for this spec)
+
+i18n (the Angular app is monolingual for now), theme toggle, board, company-details.
+
+---
+
+## 2. Backend reality (verified against the running server)
 
 ```
 GET    /api/v1/hiring-processes/:id/interactions
@@ -54,143 +54,143 @@ PUT    /api/v1/hiring-processes/:id/interactions/:interactionId
 DELETE /api/v1/hiring-processes/:id/interactions/:interactionId
 ```
 
-- El GET devuelve `successBody(data)` con un **array plano, sin paginación**. El contador
-  "N logged" de la cabecera es por tanto `interactions.length`, no un `meta.count`.
-- El schema del dominio (`packages/domain/src/schemas/interaction.ts`) exige
-  **`content` de 10 a 10.000 caracteres** y `title` de máximo 100. `type` por defecto es `note`.
-- Hay **10 tipos** de interacción (`INTERACTION_TYPES`) con etiquetas ya definidas en
+- The GET returns `successBody(data)` with a **flat array, no pagination**. The header's
+  "N logged" count is therefore `interactions.length`, not a `meta.count`.
+- The domain schema (`packages/domain/src/schemas/interaction.ts`) requires
+  **`content` between 10 and 10,000 characters** and `title` up to 100. `type` defaults to `note`.
+- There are **10 interaction types** (`INTERACTION_TYPES`) with labels already defined in
   `INTERACTION_TYPE_LABELS`.
 
-**Consecuencia de diseño:** el mínimo de 10 caracteres es una trampa real en el composer rápido —
-escribir "llamé" produciría un 422. Se valida en cliente y se muestra el motivo, en vez de dejar que
-el servidor rechace en silencio.
+**Design consequence:** the 10-character minimum is a real trap in the quick composer —
+typing "called them" could produce a 422. It's validated on the client and the reason is shown,
+instead of letting the server reject it silently.
 
 ---
 
-## 3. Decisiones
+## 3. Decisions
 
-| Decisión                       | Elección                                         | Por qué                                                                                                                                                                                                                                                                               |
-| ------------------------------ | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Renderizado de markdown        | **`marked`** + `[innerHTML]`                     | Soporta GFM nativo (task lists, tablas, tachado), que es lo que iguala a `remark-gfm` en React. Angular sanea automáticamente al bindear `[innerHTML]`, sin `bypassSecurityTrust`.                                                                                                    |
-| `normalizeMarkdown` compartido | Paquete nuevo **`@interviews-tool/ui-markdown`** | Duplicar ~200 líneas de lógica de parsing es justo lo que se desincroniza. El nombre acota: es solo la parte de UI.                                                                                                                                                                   |
-| Compatibilidad con React       | **Shim de re-export** en `web-ui`                | `packages/web-ui/src/lib/normalize-markdown.ts` pasa a ser `export { normalizeMarkdown } from "@interviews-tool/ui-markdown"`. El import relativo de `markdown-content.tsx` y el `export *` del index siguen igual → **el API público de web-ui no cambia, y `apps/web` no se toca**. |
-| Estado servidor                | **TanStack Query**                               | Coherente con el resto de la app Angular. El detalle sigue con `httpResource` (contraste deliberado de la fase 1); las mutaciones de interacciones invalidan **la lista y el detalle**, porque el contador vive en la cabecera.                                                       |
-| Editar / borrar                | **`<dialog>` nativo**                            | Ya es el patrón de la app (`ArchiveDialog`). Sin librerías de overlay.                                                                                                                                                                                                                |
-| Layout en fase A               | **Una sola columna**                             | La columna izquierda de la captura es D + E. Un placeholder de "próximamente" es UI muerta; pasar a dos columnas cuando lleguen D/E es CSS, no reestructuración.                                                                                                                      |
-| Fechas                         | **Pipe nuevo `absoluteDate`**                    | La cabecera y las cards muestran `Aug 20, 2026 · 9:20 AM`. El `relativeDate` existente no sirve aquí, y se conserva para la lista.                                                                                                                                                    |
+| Decision                   | Choice                                         | Why                                                                                                                                                                                                                                                                                             |
+| -------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Markdown rendering         | **`marked`** + `[innerHTML]`                   | Supports GFM natively (task lists, tables, strikethrough), which is what matches `remark-gfm` in React. Angular sanitizes automatically when binding `[innerHTML]`, without `bypassSecurityTrust`.                                                                                              |
+| Shared `normalizeMarkdown` | New package **`@interviews-tool/ui-markdown`** | Duplicating ~200 lines of parsing logic is exactly what goes out of sync. The name scopes it: it's only the UI part.                                                                                                                                                                            |
+| Compatibility with React   | **Re-export shim** in `web-ui`                 | `packages/web-ui/src/lib/normalize-markdown.ts` becomes `export { normalizeMarkdown } from "@interviews-tool/ui-markdown"`. The relative import in `markdown-content.tsx` and the `export *` in the index stay the same → **web-ui's public API doesn't change, and `apps/web` isn't touched**. |
+| Server state               | **TanStack Query**                             | Consistent with the rest of the Angular app. The detail page stays on `httpResource` (a deliberate contrast with phase 1); interaction mutations invalidate **the list and the detail**, because the count lives in the header.                                                                 |
+| Edit / delete              | Native **`<dialog>`**                          | Already the app's pattern (`ArchiveDialog`). No overlay libraries.                                                                                                                                                                                                                              |
+| Phase A layout             | **Single column**                              | The capture's left column is D + E. A "coming soon" placeholder is dead UI; moving to two columns once D/E land is CSS, not a restructuring.                                                                                                                                                    |
+| Dates                      | New **`absoluteDate`** pipe                    | The header and cards show `Aug 20, 2026 · 9:20 AM`. The existing `relativeDate` doesn't fit here, and is kept for the list.                                                                                                                                                                     |
 
-### Regla de imports (actualiza `CLAUDE.md`)
+### Import rule (updates `CLAUDE.md`)
 
-`apps/angular-web` puede importar **`@interviews-tool/domain`** y **`@interviews-tool/ui-markdown`**.
-Nunca `application`, `infra-*` ni `web-ui`.
+`apps/angular-web` may import **`@interviews-tool/domain`** and **`@interviews-tool/ui-markdown`**.
+Never `application`, `infra-*`, or `web-ui`.
 
-`@interviews-tool/ui-markdown` es **puro**: sin React, sin Angular, sin DOM. Mismo contrato que
+`@interviews-tool/ui-markdown` is **pure**: no React, no Angular, no DOM. Same contract as
 `domain`.
 
 ---
 
-## 4. Estructura
+## 4. Structure
 
 ```
-packages/ui-markdown/                      NUEVO — puro, sin framework
+packages/ui-markdown/                      NEW — pure, no framework
   package.json                             exports "." -> src/index.ts (+ publishConfig -> dist)
   src/index.ts                             export { normalizeMarkdown }
-  src/normalize-markdown.ts                movido tal cual desde web-ui
-  src/__tests__/normalize-markdown.test.ts NUEVO — el original no tenía tests
+  src/normalize-markdown.ts                moved as-is from web-ui
+  src/__tests__/normalize-markdown.test.ts NEW — the original had no tests
 
 packages/web-ui/
-  src/lib/normalize-markdown.ts            pasa a ser un re-export de una línea
+  src/lib/normalize-markdown.ts            becomes a one-line re-export
 
 apps/angular-web/
   angular.json                             prebundle.exclude += "@interviews-tool/ui-markdown"
   package.json                             + marked, + @interviews-tool/ui-markdown
-  src/styles.css                           + tokens de badge de tipo (offer / rejection)
+  src/styles.css                           + type badge tokens (offer / rejection)
   src/app/
     shared/
       ui/markdown-content.ts               <app-markdown [content] [variant]>
-      ui/markdown-content.css              portado de web-ui (268 líneas de CSS puro)
+      ui/markdown-content.css              ported from web-ui (268 lines of plain CSS)
       pipes/absolute-date.pipe.ts          "Aug 20, 2026 · 9:20 AM"
     core/api/
-      interaction.model.ts                 Interaction (fechas ISO string)
+      interaction.model.ts                 Interaction (ISO string dates)
       interactions.api.ts                  list / create / update / delete
     features/hiring-processes/
-      interaction.keys.ts                  claves TanStack
+      interaction.keys.ts                  TanStack keys
       interaction.queries.ts               inject* factories
       detail/
-        detail-page.ts                     REESCRITO: cabecera + stats + sección interactions
-        process-stats.ts                   fila de 4 stats
+        detail-page.ts                     REWRITTEN: header + stats + interactions section
+        process-stats.ts                   4-stat row
         interactions/
-          interaction-section.ts           cabecera de sección + composer + timeline
+          interaction-section.ts           section header + composer + timeline
           quick-capture.ts                 input + Log
-          interaction-timeline.ts          lista, skeleton, empty state
-          interaction-card.ts              una card
-          interaction-type-badge.ts        badge de tipo
-          edit-interaction-dialog.ts       <dialog> con title / type / content
-          delete-interaction-dialog.ts     <dialog> de confirmación
+          interaction-timeline.ts          list, skeleton, empty state
+          interaction-card.ts              one card
+          interaction-type-badge.ts        type badge
+          edit-interaction-dialog.ts       <dialog> with title / type / content
+          delete-interaction-dialog.ts     confirmation <dialog>
 ```
 
 ---
 
-## 5. Flujo de datos
+## 5. Data flow
 
 ```
 DetailPage
- ├─ httpResource  GET /hiring-processes/:id        (sin caché compartida, se recarga a mano)
+ ├─ httpResource  GET /hiring-processes/:id        (no shared cache, reloaded manually)
  └─ InteractionSection
      ├─ injectInteractionList(id)   TanStack  GET .../interactions
      ├─ injectCreateInteraction()   ─┐
-     ├─ injectUpdateInteraction()   ─┼─ onSuccess: invalida interactionKeys.list(id)
+     ├─ injectUpdateInteraction()   ─┼─ onSuccess: invalidates interactionKeys.list(id)
      └─ injectDeleteInteraction()   ─┘
 ```
 
-El servidor nunca escribe la fila de `hiring_processes` al crear, editar o borrar una interacción,
-así que `updatedAt` no cambia y la cabecera del detalle no necesita refrescarse tras esas mutaciones.
-El contador "N logged" tampoco depende del `httpResource`: se deriva de la lista de TanStack
-(`list().length`), que se invalida a sí misma en cada mutación exitosa.
+The server never writes the `hiring_processes` row when an interaction is created, edited, or deleted,
+so `updatedAt` doesn't change and the detail header doesn't need to refresh after those mutations.
+The "N logged" count doesn't depend on the `httpResource` either: it's derived from the TanStack list
+(`list().length`), which invalidates itself on every successful mutation.
 
-**Decisión:** el contador lo aporta la query de interacciones; el `httpResource` del detalle no se
-recarga como consecuencia de una mutación de interacciones.
+**Decision:** the count is supplied by the interactions query; the detail's `httpResource` is not
+reloaded as a result of an interaction mutation.
 
 ---
 
-## 6. Errores
+## 6. Errors
 
-| Situación                                | Comportamiento                                                                |
-| ---------------------------------------- | ----------------------------------------------------------------------------- |
-| Contenido < 10 caracteres en el composer | Mensaje inline bajo el input; no se envía la petición                         |
-| Fallo al crear / editar / borrar         | Mensaje en el `role="alert"` de la sección; el texto escrito **no se pierde** |
-| Fallo al cargar la lista                 | Empty state con "Retry" que llama a `refetch()`                               |
-| Lista vacía                              | Empty state: "No interactions logged yet"                                     |
-| 401 en cualquier petición                | Ya lo gestiona el interceptor de la fase 1 → login                            |
+| Situation                               | Behavior                                                                |
+| --------------------------------------- | ----------------------------------------------------------------------- |
+| Content < 10 characters in the composer | Inline message under the input; the request is not sent                 |
+| Failure creating / editing / deleting   | Message in the section's `role="alert"`; the typed text **is not lost** |
+| Failure loading the list                | Empty state with "Retry" that calls `refetch()`                         |
+| Empty list                              | Empty state: "No interactions logged yet"                               |
+| 401 on any request                      | Already handled by the phase 1 interceptor → login                      |
 
 ---
 
 ## 7. Testing
 
-Vitest + `TestBed`, siguiendo lo que ya hace la app:
+Vitest + `TestBed`, following what the app already does:
 
-- `packages/ui-markdown`: tests de `normalizeMarkdown` — **el original no tiene ninguno**, así que se
-  escriben al moverla, fijando el comportamiento actual antes de que dependan de él dos apps.
-- `markdown-content`: renderiza negrita, `código`, task list GFM y escapa HTML peligroso.
-- `absolute-date.pipe`: formato exacto, y ausencia de valor.
-- `interactions.api`: URL, verbo y cuerpo de los cuatro métodos; desempaquetado de `data`.
-- `quick-capture`: Enter envía; contenido corto muestra error y **no** llama a la API.
-- `interaction-timeline`: skeleton → cards; empty state; error con retry.
-- `interaction-card`: badge, fecha, título opcional, markdown renderizado, emisión de editar/borrar.
-- `detail-page`: la fila de stats muestra el contador de interacciones.
+- `packages/ui-markdown`: tests for `normalizeMarkdown` — **the original has none**, so they're
+  written while moving it, pinning down current behavior before two apps depend on it.
+- `markdown-content`: renders bold, `code`, GFM task list, and escapes dangerous HTML.
+- `absolute-date.pipe`: exact format, and absence of a value.
+- `interactions.api`: URL, verb, and body of the four methods; unwrapping of `data`.
+- `quick-capture`: Enter submits; short content shows an error and does **not** call the API.
+- `interaction-timeline`: skeleton → cards; empty state; error with retry.
+- `interaction-card`: badge, date, optional title, rendered markdown, edit/delete emission.
+- `detail-page`: the stats row shows the interaction count.
 
 ---
 
-## 8. Riesgos conocidos
+## 8. Known risks
 
-1. **El dev-server de Angular no resuelve re-exports `.ts` sin extensión de paquetes del workspace.**
-   Es exactamente lo que rompió `bun dev` en la fase 1. `@interviews-tool/ui-markdown` tendrá el
-   mismo problema → hay que añadirlo a `prebundle.exclude` en `angular.json` **en la misma tarea**
-   que crea el paquete, y verificar `bun run dev`, no solo `build` y `test`.
-2. **`marked` es síncrono pero su tipado devuelve `string | Promise<string>`** según la
-   configuración. Se usa la API síncrona explícita para que el pipe/componente no tenga que
-   gestionar promesas.
-3. **El CSS de markdown está acoplado a los tokens de Tapuy.** Al portarlo hay que comprobar que
-   todas las variables CSS que usa existen en el `styles.css` de Angular; las que falten se añaden.
-4. **`normalizeMarkdown` no tiene tests hoy.** Moverla sin fijar su comportamiento haría que un
-   cambio futuro rompiera las dos apps a la vez. Por eso los tests son parte de la tarea de mover.
+1. **Angular's dev server doesn't resolve extensionless `.ts` re-exports from workspace packages.**
+   This is exactly what broke `bun dev` in phase 1. `@interviews-tool/ui-markdown` will have the
+   same problem → it must be added to `prebundle.exclude` in `angular.json` **in the same task**
+   that creates the package, and `bun run dev` must be verified, not just `build` and `test`.
+2. **`marked` is synchronous, but its types return `string | Promise<string>`** depending on
+   configuration. The explicit synchronous API is used so the pipe/component doesn't have to
+   handle promises.
+3. **The markdown CSS is coupled to Tapuy's tokens.** When porting it, check that
+   every CSS variable it uses exists in Angular's `styles.css`; add any that are missing.
+4. **`normalizeMarkdown` has no tests today.** Moving it without pinning down its behavior would let a
+   future change break both apps at once. That's why the tests are part of the move task.
