@@ -9,12 +9,15 @@ import {
   useRouter,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
+import * as stylex from "@stylexjs/stylex";
 
 import { I18nProvider, type Locale } from "@interviews-tool/i18n";
 import { Toaster } from "@interviews-tool/web-ui";
+import { lightTheme } from "@interviews-tool/design-tokens/tokens.stylex";
 
 import Header from "../components/header";
 import appCss from "../index.css?url";
+import "@/stylex.css";
 import { getAuthSession } from "@/lib/auth/get-auth-session";
 import type { AuthSession } from "@/lib/auth/types";
 import { getLocale } from "@/functions/get-locale";
@@ -124,12 +127,22 @@ function RootDocument(): React.ReactElement {
     /* Flip the attribute first: the round trip is only there to make the
        choice stick on the next visit. */
     document.documentElement.dataset.theme = next;
+    /* The StyleX theme class is driven by the same `data-theme` toggle so
+       both mechanisms agree immediately, instead of the StyleX half lagging
+       until `router.invalidate()` re-derives `theme` from the cookie. */
+    const lightThemeClassName = stylex.props(lightTheme).className;
+    document.documentElement.classList.toggle(lightThemeClassName, next === "light");
     await setThemeFn({ data: next });
     await router.invalidate();
   };
 
   return (
-    <html lang={locale} data-theme={theme} suppressHydrationWarning>
+    <html
+      lang={locale}
+      data-theme={theme}
+      suppressHydrationWarning
+      {...stylex.props(theme === "light" && lightTheme)}
+    >
       <head>
         <style dangerouslySetInnerHTML={{ __html: criticalStyles }} />
         <HeadContent />
