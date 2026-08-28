@@ -431,6 +431,23 @@
         "react": "^19",
       },
     },
+    "packages/web-ui-stylex": {
+      "name": "@interviews-tool/web-ui-stylex",
+      "version": "0.0.0",
+      "dependencies": {
+        "@base-ui/react": "^1.0.0",
+        "@interviews-tool/design-tokens": "workspace:*",
+        "@stylexjs/stylex": "0.19.0",
+        "lucide-react": "^0.525.0",
+      },
+      "devDependencies": {
+        "@types/react": "^19.2.7",
+        "typescript": "catalog:",
+      },
+      "peerDependencies": {
+        "react": "^19",
+      },
+    },
   },
   "catalog": {
     "@better-auth/expo": "1.4.18",
@@ -1118,6 +1135,8 @@
     "@interviews-tool/ui-markdown": ["@interviews-tool/ui-markdown@workspace:packages/ui-markdown"],
 
     "@interviews-tool/web-ui": ["@interviews-tool/web-ui@workspace:packages/web-ui"],
+
+    "@interviews-tool/web-ui-stylex": ["@interviews-tool/web-ui-stylex@workspace:packages/web-ui-stylex"],
 
     "@isaacs/balanced-match": ["@isaacs/balanced-match@4.0.1", "", {}, "sha512-yzMTt9lEb8Gv7zRioUilSglI0c0smZ9k5D65677DLWLtWJaXIS3CqcGyUFByYKlnUj6TkjLVs54fBl6+TiGQDQ=="],
 
