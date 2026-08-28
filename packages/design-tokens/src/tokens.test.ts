@@ -1,7 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import { readFileSync } from "node:fs";
 import { dark, light } from "./tokens";
-import { fonts } from "./fonts";
 
 const css = readFileSync(new URL("../../web-ui/src/styles.css", import.meta.url), "utf8");
 
@@ -72,55 +71,5 @@ describe("palette parity with web-ui/styles.css", () => {
       (name) => light[name as keyof typeof light] === dark[name as keyof typeof dark],
     );
     expect(notDiverged).toEqual([]);
-  });
-});
-
-/* tokens.stylex.ts embeds `dark`/`light`/`fonts` as literal object
-   expressions instead of importing them from ./tokens.ts and ./fonts.ts —
-   see the comment at the top of that file for why cross-file imports into
-   `defineVars()`/`createTheme()` don't compile with the installed
-   @stylexjs/babel-plugin@0.19.0. That literal duplication needs the same
-   kind of drift guard the tests above give the Tailwind/tokens.ts pair: this
-   suite parses the three object literals out of tokens.stylex.ts's source
-   text and asserts each equals its source of truth exactly. */
-const stylexSrc = readFileSync(new URL("./tokens.stylex.ts", import.meta.url), "utf8");
-
-/** Pull the flat `{ key: "value", ... }` object literal that starts right
-    after `marker` in tokens.stylex.ts and ends at the first unindented `})`
-    or `});` that follows. Safe only because none of these three literals
-    nest an object inside another — every value is a plain string. */
-function objectLiteralAfter(marker: string): Record<string, string> {
-  const start = stylexSrc.indexOf(marker);
-  if (start === -1) throw new Error(`marker not found in tokens.stylex.ts: ${marker}`);
-  const bodyStart = stylexSrc.indexOf("{", start);
-  const bodyEnd = stylexSrc.indexOf("});", bodyStart);
-  if (bodyStart === -1 || bodyEnd === -1) {
-    throw new Error(`could not find object literal body for marker: ${marker}`);
-  }
-  const body = stylexSrc.slice(bodyStart, bodyEnd);
-  const out: Record<string, string> = {};
-  for (const match of body.matchAll(/^\s*(\w+):\s*(?:"([^"]*)"|'([^']*)'),?\s*$/gm)) {
-    const [, key, dq, sq] = match;
-    if (key === undefined) continue;
-    out[key] = dq ?? sq ?? "";
-  }
-  return out;
-}
-
-describe("tokens.stylex.ts literals match their source of truth", () => {
-  it("colors == dark", () => {
-    expect(objectLiteralAfter("export const colors = stylex.defineVars(")).toEqual({ ...dark });
-  });
-
-  it("lightTheme's override object == light", () => {
-    expect(objectLiteralAfter("export const lightTheme = stylex.createTheme(colors, ")).toEqual({
-      ...light,
-    });
-  });
-
-  it("typography == fonts", () => {
-    expect(objectLiteralAfter("export const typography = stylex.defineVars(")).toEqual({
-      ...fonts,
-    });
   });
 });

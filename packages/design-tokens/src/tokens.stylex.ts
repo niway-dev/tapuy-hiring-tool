@@ -1,38 +1,32 @@
+/* GENERATED — do not edit. Run `bun run generate:stylex` in
+   packages/design-tokens (source: ./tokens.ts, ./fonts.ts). CI regenerates
+   this file and fails the PR if it differs from what's committed.
+
+   Why the palette is written out literally here instead of
+   `import { dark } from "./tokens"`: this repo's StyleX config uses
+   `unstable_moduleResolution: { type: "commonJS" }`, and under that mode
+   defineVars()/createTheme() can only take a value written in the same
+   file. A plain `.ts` import is rejected outright — the import specifier
+   must end in `.stylex`, `.stylex.const`, or `.transformed`, and
+   "./tokens" matches none of them.
+
+   The trap: renaming the import to qualify does NOT fix it. Under
+   `commonJS`, a qualifying import resolves through a theme-reference
+   proxy, not the real value — `defineVars(dark)` would silently compile
+   to `{ __varGroupHash__: "..." }` with none of the actual variables. No
+   build error, just broken CSS custom properties.
+
+   (Real cross-file *value* reading only exists under
+   `unstable_moduleResolution: { type: "experimental_crossFileParsing" }`,
+   which this repo does not use — and which has its own, unrelated bug in
+   @stylexjs/babel-plugin@0.19.0: it deopts on every file, because its
+   success check treats Babel's always-present, always-truthy empty
+   `ast.errors` array as a parse failure.)
+
+   So: literal values, kept in sync with ./tokens.ts by this generator. */
 import * as stylex from "@stylexjs/stylex";
 
-/** The variable set. Dark is the default, matching web-ui/styles.css.
- *
- * The values below are written out literally instead of `import { dark }
- * from "./tokens"` (which is what a plain call site would reach for, and
- * what an earlier draft of this file did). That import compiles under Vite
- * — `tokens.ts` is syntactically fine — but every build fails at
- * `defineVars()` with "Only static values are allowed inside of a
- * defineVars() call.", because @stylexjs/babel-plugin@0.19.0 has a bug in
- * the code path that resolves an imported identifier back to its value
- * across files (`evaluateImportedFile` in `lib/index.js`). It parses the
- * imported file, then guards the result with:
- *
- *   if (!ast || ast.errors || !t.isNode(ast)) { deopt(...); return; }
- *
- * `ast.errors` is the array Babel's parser always attaches to a parse
- * result, `[]` when there were no errors. `[]` is truthy in JS, so this
- * condition deopts on *every* successfully parsed file, whether the import
- * is a plain `.ts` re-export or a dedicated `.stylex.const.ts` file, and
- * whether `unstable_moduleResolution.type` is `commonJS` or the
- * `experimental_crossFileParsing` mode built for exactly this case —
- * verified directly against the installed 0.19.0 package, not inferred.
- * `stylex.defineVars()` and `stylex.createTheme()` can only consume a value
- * that Babel can evaluate without leaving this file, so the palette has to
- * be inlined here.
- *
- * This does mean `dark`/`light`/`fonts` exist in two places: the source of
- * truth in `./tokens.ts` and `./fonts.ts`, and this literal copy. That's
- * the same shape as the Tailwind/StyleX duplication `tokens.test.ts` (Task
- * 3) already guards — and that file also drift-guards this one: it parses
- * this file's source text and asserts these three object literals equal
- * `dark`, `light`, and `fonts` exactly. */
 export const colors = stylex.defineVars({
-  // Neons — the 1%
   mint: "#00ffc2",
   mintHover: "#33ffd0",
   mintOn: "#04261d",
@@ -40,8 +34,6 @@ export const colors = stylex.defineVars({
   fuchsiaOn: "#3a0022",
   violet: "#7a00ff",
   violetOn: "#e8d6ff",
-
-  // Neutrals — the 90%, cold blue tint
   bg: "#0a0f14",
   surface: "#0f161d",
   surface2: "#141c25",
@@ -50,11 +42,7 @@ export const colors = stylex.defineVars({
   text: "#e6ebf0",
   textSecondary: "#a7b1bc",
   textMuted: "#6b7785",
-
-  // Danger
   danger: "#e05252",
-
-  // States — the 9%. Active: tinted + border. Terminal: solid, no border.
   stFirstContactBg: "#1b0f33",
   stFirstContactText: "#c9a6ff",
   stFirstContactBorder: "#4a1f8a",
@@ -75,11 +63,7 @@ export const colors = stylex.defineVars({
   stRejectedText: "#fdecec",
   stDroppedOutBg: "#4a5562",
   stDroppedOutText: "#eef2f5",
-
-  // Focus ring — alias of `--focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--mint)`
   focusRing: "0 0 0 2px #0a0f14, 0 0 0 4px #00ffc2",
-
-  // Semantic (shadcn) aliases → Tapuy. Components inherit the theme through these.
   background: "#0a0f14",
   foreground: "#e6ebf0",
   card: "#0f161d",
@@ -109,7 +93,6 @@ export const typography = stylex.defineVars({
 
 /** Applied as a class on <html> when the theme cookie says "light". */
 export const lightTheme = stylex.createTheme(colors, {
-  // Neons — the 1%
   mint: "#00a67e",
   mintHover: "#00926f",
   mintOn: "#e4fff6",
@@ -117,8 +100,6 @@ export const lightTheme = stylex.createTheme(colors, {
   fuchsiaOn: "#ffe3f3",
   violet: "#5b00c4",
   violetOn: "#eedfff",
-
-  // Neutrals
   bg: "#f3f5f8",
   surface: "#ffffff",
   surface2: "#e9edf2",
@@ -127,11 +108,7 @@ export const lightTheme = stylex.createTheme(colors, {
   text: "#0f1720",
   textSecondary: "#4a5563",
   textMuted: "#7a8593",
-
-  // Danger
   danger: "#c73a3a",
-
-  // States
   stFirstContactBg: "#efe4ff",
   stFirstContactText: "#4a1f8a",
   stFirstContactBorder: "#c9a6ff",
@@ -152,11 +129,7 @@ export const lightTheme = stylex.createTheme(colors, {
   stRejectedText: "#fdecec",
   stDroppedOutBg: "#5a6470",
   stDroppedOutText: "#f4f6f8",
-
-  // Focus ring — light diverges from dark's `var(--bg)`/`var(--mint)` composition.
   focusRing: "0 0 0 2px #f3f5f8, 0 0 0 4px #00a67e",
-
-  // Semantic (shadcn) aliases.
   background: "#f3f5f8",
   foreground: "#0f1720",
   card: "#ffffff",
