@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "hiring-tool-web-stylex",
+  "compatibility_date": "2025-10-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "@tanstack/react-start/server-entry",
+  "observability": {
+    "enabled": true,
+  },
+  "assets": {
+    "directory": "dist/client",
+    "binding": "ASSETS",
+  },
+  "preview_urls": true,
+  "services": [
+    {
+      "binding": "API_SERVICE",
+      "service": "hiring-tool-api",
+    },
+  ],
+}
