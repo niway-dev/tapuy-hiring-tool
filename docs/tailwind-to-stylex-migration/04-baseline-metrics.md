@@ -173,10 +173,14 @@ and subtracting an unproven offset is not a substitute for eliminating it.
 `apps/web-stylex` with Tailwind (this document's baseline — client JS
 **1,369,007 B raw / 402,043 B gzip**, both `measured` above) vs. `apps/web-stylex`
 with StyleX (to be `measured` in Phase 5, after the migration lands on this same
-app). A within-app comparison holds the build configuration — `wrangler.jsonc`,
-`package.json`, port, everything — constant by construction, so the 13,563 B
-confound cannot enter it. No root cause needs to be found for this comparison to
-be valid.
+app). A within-app comparison holds `wrangler.jsonc`, the worker name, and the
+port constant, while the Tailwind→StyleX dependency swap is the intended
+independent variable — this document's own elimination table above shows that
+swap category (`wrangler`, `alchemy`, test-tooling presence in `package.json`)
+moved the byte count by exactly zero, so the 13,563 B confound, whose leading
+candidate is `wrangler.jsonc`'s `routes`/`name` fields, cannot enter this
+comparison either. No root cause needs to be found for this comparison to be
+valid.
 
 **Consequence: `apps/web-stylex`'s own baseline row is the one that matters** for
 the eventual "did StyleX shrink the bundle" claim — specifically the Client JS raw
@@ -187,11 +191,17 @@ comparison baseline for any StyleX delta.
 
 **The visual-diff harness (`apps/web-stylex/compare/`) is unaffected by any of
 this.** It compares rendered pixels between the two apps' live pages, not build
-output bytes, and its result today is a **0.00% diff**. That result shows the two
-apps render identically regardless of how their JS is chunked or packaged — it is
-a separate, orthogonal instrument from the byte-count metrics in this document,
-and Phase 5 should keep using it to confirm nothing visually broke, independent of
-which bundle-size comparison is used.
+output bytes, and its result today is **0.00% diff on the 12 of 28 screenshots
+that have actually run** (the 3 unauthenticated routes × 2 viewports × 2 themes,
+via `COMPARE_ONLY_PUBLIC=1`). The remaining 16 screenshots — the 4 authenticated
+routes (`processes`, `process-new`, `process-detail`, `process-edit`) × 2
+viewports × 2 themes — have never run; they need `COMPARE_EMAIL`/
+`COMPARE_PASSWORD` for a seeded account, which this task did not have. So the
+0.00% figure shows the two apps render identically **on the public surface
+measured so far**, not across the whole app. It is a separate, orthogonal
+instrument from the byte-count metrics in this document, and Phase 5 should keep
+using it (full 28-screenshot run, credentials permitting) to confirm nothing
+visually broke, independent of which bundle-size comparison is used.
 
 ## Build-time gap between the two apps
 
