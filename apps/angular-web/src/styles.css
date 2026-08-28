@@ -1,11 +1,13 @@
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap");
 @import "tailwindcss";
+@import "./app/shared/ui/markdown-content.css";
 
 /* Tapuy tokens (dark is the default) — copied from packages/web-ui/src/styles.css */
 :root {
   --mint: #00ffc2;
   --mint-hover: #33ffd0;
   --mint-on: #04261d;
+  --fuchsia: #ff00a0;
   --bg: #0a0f14;
   --surface: #0f161d;
   --surface-2: #141c25;
@@ -56,7 +58,9 @@
   --color-mint: var(--mint);
   --color-mint-hover: var(--mint-hover);
   --color-mint-on: var(--mint-on);
+  --color-fuchsia: var(--fuchsia);
   --color-danger: var(--danger);
+  --color-status-rejected-bg: var(--st-rejected-bg);
   --font-sans: "Geist", ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Geist Mono", ui-monospace, monospace;
 }
@@ -201,5 +205,54 @@
   .badge[data-status="dropped-out"] {
     background: var(--st-dropped-out-bg);
     color: var(--st-dropped-out-text);
+  }
+
+  /* Interaction type badges speak the same language as status badges:
+     12px/500, 2x8 padding, radius 5, sentence case, never an icon inside.
+     Only `offer` and `rejection` get colour; the rest stay neutral. */
+  .badge-type {
+    display: inline-flex;
+    align-items: center;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 500;
+    white-space: nowrap;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-secondary);
+  }
+  .badge-type[data-type="offer"] {
+    background: var(--st-offer-made-bg);
+    color: var(--st-offer-made-text);
+    border-color: var(--st-offer-made-border);
+  }
+  .badge-type[data-type="rejection"] {
+    background: var(--st-rejected-bg);
+    color: var(--st-rejected-text);
+    border-color: transparent;
+  }
+
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    border-radius: 0.375rem;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: pointer;
+  }
+  .btn-icon:hover {
+    color: var(--text);
+    background: var(--surface-2);
+  }
+  .btn-icon:focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
   }
 }

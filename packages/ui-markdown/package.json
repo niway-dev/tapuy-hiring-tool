@@ -1,0 +1,34 @@
+{
+  "name": "@interviews-tool/ui-markdown",
+  "version": "1.0.0",
+  "description": "Framework-agnostic markdown presentation helpers shared by the web and Angular clients",
+  "license": "ISC",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.mjs",
+      "./package.json": "./package.json"
+    }
+  },
+  "scripts": {
+    "build": "tsdown",
+    "clean": "rm -rf dist",
+    "check-types": "tsc --noEmit",
+    "lint": "oxlint src",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "tsdown": "^0.18.2",
+    "typescript": "^5",
+    "vitest": "^2.1.0"
+  },
+  "packageManager": "bun@1.3.4"
+}

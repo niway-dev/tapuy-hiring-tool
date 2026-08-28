@@ -4,7 +4,9 @@ import { HttpTestingController, provideHttpClientTesting } from "@angular/common
 import { Router, provideRouter } from "@angular/router";
 import { QueryClient, provideTanStackQuery } from "@tanstack/angular-query-experimental";
 import { apiErrorInterceptor } from "../../../core/http/api-error.interceptor";
+import { InteractionsApi } from "../../../core/api/interactions.api";
 import type { HiringProcess } from "../../../core/api/hiring-process.model";
+import type { Interaction } from "../../../core/api/interaction.model";
 import { DetailPage } from "./detail-page";
 
 const item: HiringProcess = {
@@ -20,13 +22,14 @@ const item: HiringProcess = {
   updatedAt: "2026-08-20T00:00:00.000Z",
 };
 
-function setup() {
+function setup(interactions: Interaction[] = []) {
   TestBed.configureTestingModule({
     providers: [
       provideRouter([]),
       provideHttpClient(withInterceptors([apiErrorInterceptor])),
       provideHttpClientTesting(),
       provideTanStackQuery(new QueryClient({ defaultOptions: { queries: { retry: false } } })),
+      { provide: InteractionsApi, useValue: { list: vi.fn().mockResolvedValue(interactions) } },
     ],
   });
   const ctrl = TestBed.inject(HttpTestingController);
@@ -48,7 +51,10 @@ describe("DetailPage", () => {
       fixture.detectChanges();
       expect(fixture.nativeElement.textContent).toContain("Acme");
     });
-    expect(fixture.nativeElement.textContent).toContain("$3,000 / mo");
+    // The stats row shows the amount and the rate/currency on separate lines
+    // (see process-stats.ts): the money pipe here omits the rate suffix.
+    expect(fixture.nativeElement.textContent).toContain("$3,000");
+    expect(fixture.nativeElement.textContent).toContain("per month · USD");
     expect(fixture.nativeElement.querySelector("select#next-status")).not.toBeNull();
   });
 
@@ -246,6 +252,58 @@ describe("DetailPage", () => {
     deleteReq.flush(null, { status: 204, statusText: "No Content" });
     await vi.waitFor(() => {
       expect(navigate).toHaveBeenCalledWith(["/hiring-processes"]);
+    });
+  });
+
+  it("renders the four-stat row with the interaction count", async () => {
+    const interactions: Interaction[] = [
+      {
+        id: "33333333-3333-4333-8333-333333333333",
+        hiringProcessId: item.id,
+        title: null,
+        content: "A note with plenty of characters.",
+        type: "note",
+        createdAt: "2026-08-10T00:00:00.000Z",
+        updatedAt: "2026-08-10T00:00:00.000Z",
+      },
+      {
+        id: "44444444-4444-4444-8444-444444444444",
+        hiringProcessId: item.id,
+        title: null,
+        content: "Another note with plenty of characters.",
+        type: "note",
+        createdAt: "2026-08-12T00:00:00.000Z",
+        updatedAt: "2026-08-12T00:00:00.000Z",
+      },
+    ];
+    const { ctrl, fixture } = setup(interactions);
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Interactions");
+      expect(fixture.nativeElement.textContent).toContain("logged");
+      expect(fixture.nativeElement.textContent).toContain("Last updated");
+      // Assert on the stats block specifically -- not merely that "2" appears
+      // somewhere on the page -- to actually exercise the TanStack list ->
+      // computed -> httpResource-rendered-header chain.
+      const statsRow = fixture.nativeElement.querySelector("app-process-stats > div");
+      const interactionsBlock = statsRow?.children[1] as HTMLElement;
+      expect(interactionsBlock?.textContent).toContain("Interactions");
+      expect(interactionsBlock?.querySelector("p.text-2xl")?.textContent?.trim()).toBe("2");
+    });
+  });
+
+  it("shows the back link and the company name in the header card", async () => {
+    const { ctrl, fixture } = setup();
+    await vi.waitFor(() =>
+      ctrl.expectOne(`/api/v1/hiring-processes/${item.id}`).flush({ data: item, error: null }),
+    );
+    await vi.waitFor(() => {
+      fixture.detectChanges();
+      expect(fixture.nativeElement.textContent).toContain("Back to processes");
+      expect(fixture.nativeElement.querySelector("h1")?.textContent).toContain("Acme");
     });
   });
 });

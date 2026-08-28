@@ -18,8 +18,10 @@
     "@angular/platform-browser": "^22.1.0",
     "@angular/router": "^22.1.0",
     "@interviews-tool/domain": "workspace:*",
+    "@interviews-tool/ui-markdown": "workspace:*",
     "@tanstack/angular-query-experimental": "^5.102.6",
     "better-auth": "catalog:",
+    "marked": "^18.0.11",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zod": "catalog:"

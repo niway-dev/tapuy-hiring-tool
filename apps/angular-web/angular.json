@@ -2,7 +2,8 @@
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
   "cli": {
-    "packageManager": "bun"
+    "packageManager": "bun",
+    "analytics": false
   },
   "newProjectRoot": "projects",
   "projects": {
@@ -54,7 +55,7 @@
           "builder": "@angular/build:dev-server",
           "options": {
             "prebundle": {
-              "exclude": ["@interviews-tool/domain"]
+              "exclude": ["@interviews-tool/domain", "@interviews-tool/ui-markdown"]
             }
           },
           "configurations": {
@@ -68,7 +69,10 @@
           "defaultConfiguration": "development"
         },
         "test": {
-          "builder": "@angular/build:unit-test"
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "setupFiles": ["src/test-setup.ts"]
+          }
         }
       }
     }
