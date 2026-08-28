@@ -1,117 +1,117 @@
-# Spec — `apps/angular-web`: cliente Angular en paralelo
+# Spec — `apps/angular-web`: parallel Angular client
 
-**Fecha:** 2026-08-26
-**Rama:** `feat/angular-web` (desde `main` @ `82cdf71`)
-**Objetivo:** una segunda app cliente, escrita con Angular 22 y sus APIs más recientes, que consuma
-el backend existente (`apps/server`, Elysia + Better Auth) sin tocarlo ni reemplazar `apps/web`.
-Sirve como práctica de Angular de cara a una entrevista NestJS + Angular y como demostración
-del estado del arte del framework.
+**Date:** 2026-08-26
+**Branch:** `feat/angular-web` (from `main` @ `82cdf71`)
+**Goal:** a second client app, written with Angular 22 and its latest APIs, that consumes
+the existing backend (`apps/server`, Elysia + Better Auth) without touching it or replacing `apps/web`.
+It serves as Angular practice for a NestJS + Angular interview and as a demonstration
+of the framework's state of the art.
 
-No se borra nada. `apps/web` sigue siendo la app de producción.
-
----
-
-## 1. Alcance
-
-### Fase 1 — core (este spec)
-
-| Pantalla                     | Endpoints                                                                                                                                       |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| Login / Signup               | `POST /api/auth/sign-in/email`, `POST /api/auth/sign-up/email`, `GET /api/auth/get-session`, `POST /api/auth/sign-out` (vía better-auth client) |
-| Lista de hiring processes    | `GET /api/v1/hiring-processes` (page, limit, statuses, salaryDeclared). `scope/stale/sort/dir` no existen en la API hoy → fase 2                |
-| Detalle                      | `GET /api/v1/hiring-processes/:id`                                                                                                              |
-| Crear / Editar               | `POST /api/v1/hiring-processes`, `PUT /api/v1/hiring-processes/:id`                                                                             |
-| Acciones desde detalle/lista | `PATCH /:id/status`, `POST /:id/archive`, `POST /:id/restore`, `DELETE /:id`                                                                    |
-
-### Fase 2 — fuera de este spec
-
-Board (`GET /hiring-processes/board`), company-details e interactions dentro del detalle, i18n,
-theme toggle. Cada una tendrá su propio spec corto.
-
-### Fuera de alcance (permanente)
-
-SSR/hydration, deploy a Cloudflare, PWA, Angular Material. Reutilizar `packages/web-ui` (es React).
+Nothing is deleted. `apps/web` remains the production app.
 
 ---
 
-## 2. Stack y decisiones
+## 1. Scope
 
-| Decisión           | Elección                                                                                                          | Por qué                                                                                                         |
-| ------------------ | ----------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
-| Angular            | **22.1.x** (`latest` en npm al 2026-08-26), standalone, **zoneless**, sin SSR                                     | Estado del arte; zoneless obliga a signals en todo el árbol.                                                    |
-| Package manager    | **bun** (`ng new --package-manager bun`, `cli.packageManager: "bun"`)                                             | El monorepo ya es bun workspaces; `bun run ng` ejecuta el CLI con Node, así que el compilador corre donde debe. |
-| Server state       | **`@tanstack/angular-query-experimental`** 5.x (`injectQuery`/`injectMutation`)                                   | Mismo modelo mental y mismas `queryKeys` que `apps/web`; signals-first, sin RxJS.                               |
-| Comparación nativa | Un único `httpResource()` en el detalle (`GET /:id`)                                                              | Para poder contrastar TanStack vs `resource` en la entrevista. No se usa en ningún otro sitio.                  |
-| HTTP               | `HttpClient` + `provideHttpClient(withInterceptors([...]), withFetch())`                                          | Interceptors funcionales son pregunta típica; `withFetch` es el default moderno.                                |
-| Auth               | `better-auth/client` (vanilla) envuelto en `AuthService` con signals                                              | Reutiliza `/api/auth/*` tal cual. Versión del catalog raíz (1.4.18) para coincidir con el server.               |
-| Forms              | **Reactive Forms** (`nonNullable` FormBuilder) en crear/editar; **Signal Forms** (experimental) en login          | C: lo clásico donde importa, lo nuevo donde el riesgo es bajo.                                                  |
-| Validación         | Schemas Zod de `@interviews-tool/domain` (`createHiringProcessSchema`) en submit + validators sincronos por campo | Una única fuente de verdad con el server.                                                                       |
-| Estilos            | Tailwind 4 (`@tailwindcss/postcss`) + componentes propios                                                         | Reutilizamos los tokens de color/tipografía de `packages/web-ui/src/styles.css` copiados a `src/styles.css`.    |
-| Tests              | **Vitest** (runner por defecto de Angular 22) con `TestBed`                                                       | Coherente con el resto del repo (`apps/web`, `packages/*` usan vitest).                                         |
-| Lint/format        | oxlint + oxfmt desde la raíz (lint-staged ya cubre `apps/*`)                                                      | No añadimos ESLint de Angular; el CLI no lo instala por defecto.                                                |
-| Dev proxy          | `proxy.conf.json`: `/api` → `http://localhost:3000`                                                               | El CORS del server solo admite orígenes mobile; con proxy la cookie de sesión es same-origin.                   |
-| Puerto             | 4200                                                                                                              | Default de Angular; `apps/web` usa 3001 y `server` 3000.                                                        |
+### Phase 1 — core (this spec)
 
-### Imports permitidos
+| Screen                   | Endpoints                                                                                                                                       |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Login / Signup           | `POST /api/auth/sign-in/email`, `POST /api/auth/sign-up/email`, `GET /api/auth/get-session`, `POST /api/auth/sign-out` (via better-auth client) |
+| Hiring processes list    | `GET /api/v1/hiring-processes` (page, limit, statuses, salaryDeclared). `scope/stale/sort/dir` don't exist in the API today → phase 2           |
+| Detail                   | `GET /api/v1/hiring-processes/:id`                                                                                                              |
+| Create / Edit            | `POST /api/v1/hiring-processes`, `PUT /api/v1/hiring-processes/:id`                                                                             |
+| Actions from detail/list | `PATCH /:id/status`, `POST /:id/archive`, `POST /:id/restore`, `DELETE /:id`                                                                    |
 
-`apps/angular-web` importa **solo** `@interviews-tool/domain` (constants, schemas, types), igual
-que `apps/mobile`. Nunca `application` ni `infra-*`. Se añade esta regla al `CLAUDE.md` raíz.
+### Phase 2 — out of this spec
+
+Board (`GET /hiring-processes/board`), company-details and interactions within the detail view, i18n,
+theme toggle. Each will get its own short spec.
+
+### Out of scope (permanent)
+
+SSR/hydration, deploying to Cloudflare, PWA, Angular Material. Reusing `packages/web-ui` (it's React).
 
 ---
 
-## 3. Estructura
+## 2. Stack and decisions
+
+| Decision          | Choice                                                                                                                | Why                                                                                                                |
+| ----------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Angular           | **22.1.x** (`latest` on npm as of 2026-08-26), standalone, **zoneless**, no SSR                                       | State of the art; zoneless forces signals throughout the tree.                                                     |
+| Package manager   | **bun** (`ng new --package-manager bun`, `cli.packageManager: "bun"`)                                                 | The monorepo is already bun workspaces; `bun run ng` runs the CLI with Node, so the compiler runs where it should. |
+| Server state      | **`@tanstack/angular-query-experimental`** 5.x (`injectQuery`/`injectMutation`)                                       | Same mental model and same `queryKeys` as `apps/web`; signals-first, no RxJS.                                      |
+| Native comparison | A single `httpResource()` in the detail view (`GET /:id`)                                                             | So we can contrast TanStack vs `resource` in the interview. Not used anywhere else.                                |
+| HTTP              | `HttpClient` + `provideHttpClient(withInterceptors([...]), withFetch())`                                              | Functional interceptors are a typical interview question; `withFetch` is the modern default.                       |
+| Auth              | `better-auth/client` (vanilla) wrapped in `AuthService` with signals                                                  | Reuses `/api/auth/*` as-is. Version from the root catalog (1.4.18) to match the server.                            |
+| Forms             | **Reactive Forms** (`nonNullable` FormBuilder) in create/edit; **Signal Forms** (experimental) in login               | The classic approach where it matters, the new one where the risk is low.                                          |
+| Validation        | Zod schemas from `@interviews-tool/domain` (`createHiringProcessSchema`) on submit + synchronous per-field validators | A single source of truth with the server.                                                                          |
+| Styles            | Tailwind 4 (`@tailwindcss/postcss`) + custom components                                                               | We reuse the color/typography tokens from `packages/web-ui/src/styles.css` copied into `src/styles.css`.           |
+| Tests             | **Vitest** (Angular 22's default runner) with `TestBed`                                                               | Consistent with the rest of the repo (`apps/web`, `packages/*` use vitest).                                        |
+| Lint/format       | oxlint + oxfmt from the root (lint-staged already covers `apps/*`)                                                    | We don't add Angular ESLint; the CLI doesn't install it by default.                                                |
+| Dev proxy         | `proxy.conf.json`: `/api` → `http://localhost:3000`                                                                   | The server's CORS only allows mobile origins; with the proxy, the session cookie is same-origin.                   |
+| Port              | 4200                                                                                                                  | Angular's default; `apps/web` uses 3001 and `server` 3000.                                                         |
+
+### Allowed imports
+
+`apps/angular-web` imports **only** `@interviews-tool/domain` (constants, schemas, types), the same
+as `apps/mobile`. Never `application` or `infra-*`. This rule is added to the root `CLAUDE.md`.
+
+---
+
+## 3. Structure
 
 ```
 apps/angular-web/
   angular.json                 # builder @angular/build:application, packageManager bun
   package.json                 # name: "angular-web"; scripts dev/build/test/check-types
   proxy.conf.json
-  tsconfig.json                # strict, paths → ../../packages/domain/src si el symlink no basta
+  tsconfig.json                # strict, paths → ../../packages/domain/src if the symlink isn't enough
   src/
-    styles.css                 # @import "tailwindcss" + tokens copiados de web-ui
+    styles.css                 # @import "tailwindcss" + tokens copied from web-ui
     main.ts
     app/
       app.config.ts            # provideZonelessChangeDetection, provideRouter(withComponentInputBinding),
                                # provideHttpClient(withFetch, withInterceptors), provideTanStackQuery
       app.routes.ts            # lazy loadComponent + authGuard
-      app.ts                   # shell: header con user + sign-out, <router-outlet>
+      app.ts                   # shell: header with user + sign-out, <router-outlet>
       core/
         auth/
           auth.service.ts      # createAuthClient; signals: user, status ('loading'|'authed'|'anon');
-                               # signIn/signUp/signOut; refresh() al arrancar
-          auth.guard.ts        # CanActivateFn: espera status != loading, redirige a /auth/login?redirect=
-          guest.guard.ts       # inverso, para /auth/*
+                               # signIn/signUp/signOut; refresh() on startup
+          auth.guard.ts        # CanActivateFn: waits for status != loading, redirects to /auth/login?redirect=
+          guest.guard.ts       # inverse, for /auth/*
         http/
           api-error.ts         # class ApiError { status, message }
           api-error.interceptor.ts  # HttpErrorResponse → ApiError; 401 → authService.clear() + navigate login
         api/
-          hiring-processes.api.ts   # HttpClient tipado con domain; devuelve ApiResponse<T>.data
+          hiring-processes.api.ts   # HttpClient typed with domain; returns ApiResponse<T>.data
       features/
         auth/
           login.component.ts   # Signal Forms
-          signup.component.ts  # Signal Forms (mismo patrón)
+          signup.component.ts  # Signal Forms (same pattern)
         hiring-processes/
-          hiring-process.keys.ts   # copia de apps/web/src/hooks/hiring-process-keys.ts
+          hiring-process.keys.ts   # copy of apps/web/src/hooks/hiring-process-keys.ts
           hiring-process.queries.ts # injectHiringProcessList(params: Signal), injectHiringProcess(id),
                                     # injectCreate/Update/ChangeStatus/Archive/Restore/Delete mutations
           list/
-            list.page.ts       # filtros (status, scope active|archived, stale) en signals + URL query params;
-                               # paginación; tabla
+            list.page.ts       # filters (status, salaryDeclared) as signals + URL query params;
+                                # pagination; table
             list-filters.component.ts
             hiring-process-table.component.ts
           detail/
-            detail.page.ts     # input() id; httpResource para el GET; acciones (status/archive/restore/delete)
+            detail.page.ts     # input() id; httpResource for the GET; actions (status/archive/restore/delete)
             status-menu.component.ts
-            archive-dialog.component.ts   # <dialog> nativo
+            archive-dialog.component.ts   # native <dialog>
           form/
-            form.page.ts       # modo create|edit según ruta; carga con injectHiringProcess en edit
-            hiring-process-form.component.ts  # Reactive Forms; output() submit con CreateHiringProcessInput
+            form.page.ts       # create|edit mode based on route; loads with injectHiringProcess in edit
+            hiring-process-form.component.ts  # Reactive Forms; output() submit with CreateHiringProcessInput
       shared/
         ui/                    # button, input, select, badge, card, empty-state, spinner, page-header
         pipes/                 # money.pipe (salary + currency + rate), relative-date.pipe
 ```
 
-Rutas:
+Routes:
 
 ```
 /                          → redirect /hiring-processes
@@ -124,77 +124,77 @@ Rutas:
 
 ---
 
-## 4. Flujo de datos
+## 4. Data flow
 
 ```
 component ──signals──▶ injectQuery/injectMutation ──▶ HiringProcessesApi (HttpClient)
                                                             │  interceptor: error→ApiError, 401→login
                                                             ▼
-                                             proxy /api → Elysia /api/v1 (cookie de sesión)
+                                             proxy /api → Elysia /api/v1 (session cookie)
 ```
 
-- La lista lee filtros/página de la URL (`ActivatedRoute.queryParamMap` → `toSignal`) y los escribe
-  con `router.navigate({ queryParams })`. La `queryKey` incluye los params, así el back/forward del
-  browser cambia la query automáticamente.
-- Mutations: `onSuccess` → `queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all })` y
-  navegación. Sin optimistic updates en fase 1 (YAGNI; se pueden añadir en archive si sobra tiempo).
-- `AuthService.refresh()` corre en `APP_INITIALIZER`-equivalente (`provideAppInitializer`) para que
-  el guard nunca vea `loading` en navegaciones internas.
+- The list reads filters/page from the URL (`ActivatedRoute.queryParamMap` → `toSignal`) and writes
+  them with `router.navigate({ queryParams })`. The `queryKey` includes the params, so the browser's
+  back/forward changes the query automatically.
+- Mutations: `onSuccess` → `queryClient.invalidateQueries({ queryKey: hiringProcessKeys.all })` and
+  navigation. No optimistic updates in phase 1 (YAGNI; they can be added to archive if there's time left over).
+- `AuthService.refresh()` runs in the `APP_INITIALIZER`-equivalent (`provideAppInitializer`) so that
+  the guard never sees `loading` on internal navigations.
 
 ---
 
-## 5. Errores
+## 5. Errors
 
-| Situación                        | Comportamiento                                                                                  |
-| -------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 401 en cualquier `/api/v1`       | Interceptor limpia sesión y navega a `/auth/login?redirect=<url>`.                              |
-| 404 en detalle                   | `detail.page` muestra empty-state "No encontrado" con link a la lista.                          |
-| 400/409/422 en formulario        | `form.page` muestra `ApiError.message` sobre el botón de submit; los campos mantienen su valor. |
-| Validación Zod fallida en submit | Se marcan los controles con `setErrors` desde los `issues` de Zod; no se envía la request.      |
-| Error de red                     | Banner genérico + botón "Reintentar" que llama `query.refetch()`.                               |
+| Situation                       | Behavior                                                                               |
+| ------------------------------- | -------------------------------------------------------------------------------------- |
+| 401 on any `/api/v1`            | Interceptor clears the session and navigates to `/auth/login?redirect=<url>`.          |
+| 404 in detail                   | `detail.page` shows an empty-state "Not found" with a link to the list.                |
+| 400/409/422 on the form         | `form.page` shows `ApiError.message` above the submit button; fields keep their value. |
+| Failed Zod validation on submit | Controls are marked with `setErrors` from Zod's `issues`; the request is not sent.     |
+| Network error                   | Generic banner + "Retry" button that calls `query.refetch()`.                          |
 
-Los mensajes están en inglés (i18n es fase 2).
+Messages are in English (i18n is phase 2).
 
 ---
 
 ## 6. Testing
 
-Vitest con `TestBed` y `provideHttpClientTesting`:
+Vitest with `TestBed` and `provideHttpClientTesting`:
 
-- `auth.service.spec.ts` — `refresh()` fija `status`; `signOut` limpia `user`.
-- `auth.guard.spec.ts` — anon → `UrlTree` a login con `redirect`; authed → `true`.
-- `api-error.interceptor.spec.ts` — 401 limpia sesión y navega; 500 mapea a `ApiError`.
-- `hiring-processes.api.spec.ts` — construye query params correctos y desempaqueta `data`.
-- `hiring-process-form.component.spec.ts` — required en `companyName`; emite `CreateHiringProcessInput`
-  válido; salary negativo bloquea submit.
-- `list.page.spec.ts` — cambiar filtro actualiza query params de la URL.
+- `auth.service.spec.ts` — `refresh()` sets `status`; `signOut` clears `user`.
+- `auth.guard.spec.ts` — anon → `UrlTree` to login with `redirect`; authed → `true`.
+- `api-error.interceptor.spec.ts` — 401 clears the session and navigates; 500 maps to `ApiError`.
+- `hiring-processes.api.spec.ts` — builds correct query params and unwraps `data`.
+- `hiring-process-form.component.spec.ts` — required on `companyName`; emits a valid
+  `CreateHiringProcessInput`; negative salary blocks submit.
+- `list.page.spec.ts` — changing a filter updates the URL's query params.
 
-Sin e2e en fase 1. Verificación manual: `bun run dev:server` + `bun run dev:angular` y recorrer
-login → lista → crear → detalle → editar → archivar → restaurar.
-
----
-
-## 7. Integración con el monorepo
-
-- `package.json` raíz: script `dev:angular: turbo run dev -F angular-web`.
-- `turbo.json`: sin cambios (las tasks `dev`, `build`, `test`, `check-types` ya son genéricas).
-  `outputs` de build para la app es `dist/**`, ya cubierto.
-- `CLAUDE.md` raíz: añadir `angular-web` a la regla de imports (solo `domain`).
-- `oxlint`/`oxfmt`: correr desde raíz; si el formato de Angular (decorators con templates inline)
-  choca con oxfmt, se añade `apps/angular-web` a `.oxfmtrc` ignore solo para los `*.ts` con
-  templates inline — decisión que se toma en la tarea de scaffold con evidencia, no antes.
-- No se toca `apps/server` ni `apps/web`.
+No e2e in phase 1. Manual verification: `bun run dev:server` + `bun run dev:angular` and walk through
+login → list → create → detail → edit → archive → restore.
 
 ---
 
-## 8. Riesgos conocidos
+## 7. Monorepo integration
 
-1. **Resolución de `@interviews-tool/domain`** con el builder de Angular: primera tarea del plan es
-   scaffold + importar `HIRING_PROCESS_STATUSES` + `bun run build`. Si falla, fallback: `paths` en
-   `tsconfig.json` apuntando a `../../packages/domain/src`.
-2. **Signal Forms** es experimental; si la API de 22.1 no cubre lo que necesita login (o rompe en
-   zoneless), login pasa a Reactive Forms y se anota en el spec. No bloquea nada más.
-3. **Cookie de sesión con proxy**: Better Auth fija la cookie para el host que responde; con el
-   proxy de Angular la respuesta llega desde `localhost:4200`, mismo origen que la app, así que
-   `credentials: "include"` basta. Si `BETTER_AUTH_URL` del server apunta a otro host y la cookie
-   sale con `Domain`, se ajusta `.env` local, no código.
+- Root `package.json`: script `dev:angular: turbo run dev -F angular-web`.
+- `turbo.json`: no changes (the `dev`, `build`, `test`, `check-types` tasks are already generic).
+  The app's build `outputs` is `dist/**`, already covered.
+- Root `CLAUDE.md`: add `angular-web` to the imports rule (only `domain`).
+- `oxlint`/`oxfmt`: run from the root; if Angular's formatting (decorators with inline templates)
+  clashes with oxfmt, `apps/angular-web` is added to the `.oxfmtrc` ignore list, only for the `*.ts`
+  files with inline templates — a decision made during the scaffold task with evidence, not before.
+- `apps/server` and `apps/web` are not touched.
+
+---
+
+## 8. Known risks
+
+1. **Resolving `@interviews-tool/domain`** with Angular's builder: the plan's first task is
+   scaffold + import `HIRING_PROCESS_STATUSES` + `bun run build`. If it fails, fallback: `paths` in
+   `tsconfig.json` pointing to `../../packages/domain/src`.
+2. **Signal Forms** is experimental; if the 22.1 API doesn't cover what login needs (or breaks in
+   zoneless), login falls back to Reactive Forms and it's noted in the spec. It doesn't block anything else.
+3. **Session cookie with the proxy**: Better Auth sets the cookie for the host that responds; with
+   Angular's proxy, the response arrives from `localhost:4200`, the same origin as the app, so
+   `credentials: "include"` is enough. If the server's `BETTER_AUTH_URL` points to another host and
+   the cookie comes out with a `Domain`, the local `.env` is adjusted, not code.
