@@ -9,12 +9,13 @@ decisions, notes.
 
 ## Documents
 
-| File                                                                                                                 | What it is                                                            | Status   |
-| -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- | -------- |
-| [`01-baseline-analysis.md`](./01-baseline-analysis.md)                                                               | Measured state of styling in this repo today, before any change       | Done     |
-| [`02-plan-review.md`](./02-plan-review.md)                                                                           | Gaps found, two corrections, and the revised 6-phase plan             | Done     |
-| [`spec-web-stylex.md`](./spec-web-stylex.md)                                                                         | The approved design: decisions, structure, conventions, phases, gates | Approved |
-| [`../superpowers/plans/2026-08-28-web-stylex-phase-0-1.md`](../superpowers/plans/2026-08-28-web-stylex-phase-0-1.md) | Implementation plan: phase 0 spike + phase 1 clone and harness        | Ready    |
+| File                                                                                                                 | What it is                                                                           | Status   |
+| -------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ | -------- |
+| [`01-baseline-analysis.md`](./01-baseline-analysis.md)                                                               | Measured state of styling in this repo today, before any change                      | Done     |
+| [`02-plan-review.md`](./02-plan-review.md)                                                                           | Gaps found, two corrections, and the revised 6-phase plan                            | Done     |
+| [`03-spike-findings.md`](./03-spike-findings.md)                                                                     | Phase 0: which StyleX build route works under Vite + TanStack Start + Cloudflare SSR | Done     |
+| [`spec-web-stylex.md`](./spec-web-stylex.md)                                                                         | The approved design: decisions, structure, conventions, phases, gates                | Approved |
+| [`../superpowers/plans/2026-08-28-web-stylex-phase-0-1.md`](../superpowers/plans/2026-08-28-web-stylex-phase-0-1.md) | Implementation plan: phase 0 spike + phase 1 clone and harness                       | Ready    |
 
 ## Ground rules for this folder
 
