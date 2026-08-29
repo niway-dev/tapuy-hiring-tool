@@ -528,17 +528,15 @@ all in `packages/web-ui/src/components/`: `button.tsx:8`, `badge.tsx:7`,
 `alert.tsx:6`, `status-badge.tsx:21`. `class-variance-authority` does two
 things — pick a set of classes by key, and merge them with the caller's. StyleX
 already does the merge in `stylex.props`, so only the _pick_ needs replacing.
-That is `packages/web-ui-stylex/src/lib/variants.ts`, in full:
 
-```ts
-export function variant<M extends Record<string, unknown>>(
-  map: M,
-  key: keyof M | undefined,
-  fallback: keyof M,
-): M[keyof M] {
-  return map[key ?? fallback];
-}
-```
+There is **no shared helper file** for that pick — no `lib/variants.ts`. An
+earlier version of this phase had one (a `variant(map, key, fallback)`
+function); it was retired because `@stylexjs/babel-plugin` dead-code-eliminates
+a `stylex.create()` binding whose only access is hidden inside a function call,
+which made every variant map compile away and crash at runtime. See §3.3 for
+the full story and the fix: index the map directly at the call site,
+`map[key ?? "default"]`. The worked example in §6.1 below already does this
+correctly — do not recreate a `variants.ts` helper.
 
 ### 6.1 Worked example: `button.tsx`
 

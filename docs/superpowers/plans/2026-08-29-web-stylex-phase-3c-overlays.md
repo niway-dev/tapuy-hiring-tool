@@ -331,6 +331,15 @@ Log in on both, open the same dialog on each, and compare side by side: size, pa
 
 160 lines, 6 hard selectors, same animation set as `Dialog`. Reuse Task 2's convention rather than inventing a second one.
 
+**`AlertDialogMedia` is intentionally left unported in this pass.** The source
+also exports `AlertDialogMedia` (and `AlertDialogOverlay`/`AlertDialogPortal`,
+internal wiring not worth re-exporting). `AlertDialogMedia` has zero call sites
+in `apps/web-stylex` today, and its icon is `*:[svg:...]:size-6` — 24px, which
+does not exist in `icon.ts`'s current xs/sm/md (12/14/16px) scale. Port it in a
+later pass, once there is a real call site to measure against: add an
+`icon.lg` (24px) to `packages/web-ui-stylex/src/lib/icon.ts` at that time,
+following the same "measured from real source" rule as the rest of the scale.
+
 - [ ] **Step 1: Read the source and find call sites**
 
 ```bash
@@ -651,6 +660,6 @@ The body must lead with the coverage caveat, not bury it: **none of these five c
 
 **Placeholders:** `motion.ts` is complete and is the module Tasks 2–5 depend on. The per-component `stylex.create` blocks show the open/closed animation pattern in full and instruct transcription of layout values from the source, because those must come from the file being ported. Every test file is complete. Every verification command is exact.
 
-**Type consistency:** `motion`'s eight keyframe names are defined in Task 1 and consumed by name in Tasks 2–5. `icon` (`xs`/`sm`/`md` = 12/14/16px) comes from Phase 3A. Variant/size namespaces are indexed directly at each call site (`map[key ?? "default"]`) — there is no shared `variant()` helper; see the note at the top of this plan. `Omit<…, "className" | "style"> & { style?: StyleXStyles }` matches 3A and 3B.
+**Type consistency:** `motion`'s eight keyframe names are defined in Task 1 and consumed by name in Tasks 2–5. `icon` (`xs`/`sm`/`md` = 12/14/16px) comes from Phase 3A — every component actually ported in this plan fits that scale. The one known exception is `AlertDialogMedia`'s 24px icon (see Task 3), which is why that element is left unported here rather than forcing it into `icon.md`. Variant/size namespaces are indexed directly at each call site (`map[key ?? "default"]`) — there is no shared `variant()` helper; see the note at the top of this plan. `Omit<…, "className" | "style"> & { style?: StyleXStyles }` matches 3A and 3B.
 
 **The honest weakness of this plan:** five components, roughly 60 hard selectors, and **no automated visual verification of any open state**. Every task compensates with tests that render the open state and a mandatory manual side-by-side check, and every task is required to say so in its report. If `COMPARE_EMAIL` / `COMPARE_PASSWORD` become available before this plan runs, use the full 28-screenshot harness instead — it would turn the weakest-gated phase of the migration into a properly gated one, and it is worth waiting for.

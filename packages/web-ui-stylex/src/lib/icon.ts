@@ -6,9 +6,11 @@ import * as stylex from "@stylexjs/stylex";
 
    Sizes are the actual [&_svg]:size-* values measured across every
    packages/web-ui component (button's xs/sm/default variants, checkbox,
-   dropdown-menu, select) — 12 / 14 / 16px. There is no third-party evidence
-   for a fourth, larger size anywhere in this component library; add one only
-   when a real component measurably needs it. */
+   dropdown-menu, select) — 12 / 14 / 16px. The only exception is
+   `alert-dialog.tsx`'s `AlertDialogMedia`, which uses `size-6` (24px); it has
+   zero call sites in this app today, so no `icon.lg` size exists yet. Add one,
+   measured from the real source, if and when `AlertDialogMedia` is actually
+   ported. */
 export const icon = stylex.create({
   xs: { width: 12, height: 12, flexShrink: 0, pointerEvents: "none" },
   sm: { width: 14, height: 14, flexShrink: 0, pointerEvents: "none" },

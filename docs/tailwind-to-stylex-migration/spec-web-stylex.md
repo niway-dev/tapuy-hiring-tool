@@ -81,7 +81,6 @@ packages/
   web-ui-stylex/               D4
     src/components/*.tsx       one file per ported component, same names as web-ui
     src/index.ts               barrel, same export names as web-ui
-    src/lib/variants.ts        tiny helper for cva-style variant maps
   web-ui/                      unchanged
 ```
 
