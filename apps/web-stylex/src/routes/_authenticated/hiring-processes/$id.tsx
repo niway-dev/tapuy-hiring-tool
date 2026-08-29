@@ -15,11 +15,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Input,
   StatusBadge,
   cn,
 } from "@interviews-tool/web-ui";
-import { Skeleton } from "@interviews-tool/web-ui-stylex";
+import { Input, Skeleton } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { CURRENCY_INFO, SALARY_RATE_TYPES } from "@interviews-tool/domain/constants";
 import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
@@ -49,6 +48,10 @@ export const Route = createFileRoute("/_authenticated/hiring-processes/$id")({
   validateSearch: (search: Record<string, unknown>): { live?: boolean } => ({
     live: search.live === true || search.live === "true" ? true : undefined,
   }),
+});
+
+const inputStyles = stylex.create({
+  h40Flex1: { height: 40, flex: "1 1 0%" },
 });
 
 const skeletonStyles = stylex.create({
@@ -556,7 +559,7 @@ function HiringProcessDetailPage() {
                   }
                 }}
                 placeholder={tCapture("quickCapturePlaceholder")}
-                className="h-10 flex-1"
+                style={inputStyles.h40Flex1}
               />
               <Button
                 variant="secondary"

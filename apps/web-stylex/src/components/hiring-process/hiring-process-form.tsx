@@ -1,9 +1,11 @@
+import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { ChevronDown } from "lucide-react";
 
-import { Button, Input, cn } from "@interviews-tool/web-ui";
-import { Label } from "@interviews-tool/web-ui-stylex";
+import { Button, cn } from "@interviews-tool/web-ui";
+import { Input, Label } from "@interviews-tool/web-ui-stylex";
+import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import {
   CURRENCIES,
@@ -18,6 +20,17 @@ import type { CreateCompanyDetailsInput } from "@/hooks/use-company-details";
 import { StatusField } from "./status-field";
 import { SalaryField } from "./salary-field";
 import { CompanyDetailsFields } from "./company-details-fields";
+
+const styles = stylex.create({
+  companyName: {
+    height: 52,
+    fontSize: 20,
+    lineHeight: "28px",
+  },
+  companyNameInvalid: {
+    borderColor: colors.danger,
+  },
+});
 
 export interface HiringProcessFormValues {
   companyName: string;
@@ -139,10 +152,10 @@ export function HiringProcessForm({
               onChange={(e) => field.handleChange(e.target.value)}
               placeholder={t("companyPlaceholder")}
               disabled={isSubmitting}
-              className={cn(
-                "h-[52px] text-xl",
-                field.state.meta.errors.length > 0 && "border-danger",
-              )}
+              style={[
+                styles.companyName,
+                field.state.meta.errors.length > 0 && styles.companyNameInvalid,
+              ]}
             />
             {field.state.meta.errors.length > 0 && (
               <p className="text-xs text-danger">{field.state.meta.errors[0]}</p>
@@ -159,7 +172,6 @@ export function HiringProcessForm({
               <Label htmlFor="jobTitle">{t("jobTitle")}</Label>
               <Input
                 id="jobTitle"
-                className="h-9"
                 value={field.state.value}
                 onChange={(e) => field.handleChange(e.target.value)}
                 placeholder={t("jobTitlePlaceholder")}

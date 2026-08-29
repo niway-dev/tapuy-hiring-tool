@@ -10,7 +10,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Input,
   Select,
   SelectContent,
   SelectItem,
@@ -18,7 +17,8 @@ import {
   SelectValue,
   TapuyMark,
 } from "@interviews-tool/web-ui";
-import { Skeleton } from "@interviews-tool/web-ui-stylex";
+import { Input, Skeleton } from "@interviews-tool/web-ui-stylex";
+import { typography } from "@interviews-tool/design-tokens/tokens.stylex";
 import {
   ARCHIVE_REASONS,
   HIRING_PROCESS_SCOPE_VALUES,
@@ -86,6 +86,14 @@ const dashboardSearchSchema = z.object({
 });
 
 type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
+
+const inputStyles = stylex.create({
+  monoW96: {
+    fontFamily: typography.mono,
+    fontVariantNumeric: "tabular-nums",
+    width: 96,
+  },
+});
 
 const skeletonStyles = stylex.create({
   h3W24: { height: 12, width: 96 },
@@ -582,7 +590,7 @@ function HiringProcessesComponent() {
               type="number"
               min={0}
               placeholder={t("minSalary")}
-              className="mono h-9 w-24"
+              style={inputStyles.monoW96}
               value={filters.salaryMin ?? ""}
               onChange={(e) => {
                 const val = e.target.value;
@@ -593,7 +601,7 @@ function HiringProcessesComponent() {
               type="number"
               min={0}
               placeholder={t("maxSalary")}
-              className="mono h-9 w-24"
+              style={inputStyles.monoW96}
               value={filters.salaryMax ?? ""}
               onChange={(e) => {
                 const val = e.target.value;

@@ -1,11 +1,17 @@
+import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
-import { Button, Checkbox, Input, cn } from "@interviews-tool/web-ui";
+import { Button, Checkbox, cn } from "@interviews-tool/web-ui";
+import { Input } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { useQuestions, type QuestionWithState } from "@/lib/questions-store";
 
 /* Questions to ask — spec §4 of documentation/CAPTURE-V2.md.
    In the normal column ticking only marks the question as asked; in live
    mode ticking also writes `**Q:** <question>` into the note (onTick). */
+
+const styles = stylex.create({
+  flex1: { flex: "1 1 0%" },
+});
 
 interface QuestionsPanelProps {
   processId: string;
@@ -120,7 +126,7 @@ export function QuestionsPanel({
             }
           }}
           placeholder={t("addQuestion")}
-          className="h-9 flex-1"
+          style={styles.flex1}
         />
         <Button type="button" variant="secondary" onClick={handleAdd}>
           {t("add")}

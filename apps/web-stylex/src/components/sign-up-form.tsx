@@ -6,8 +6,8 @@ import z from "zod";
 
 import { authClient } from "@/lib/auth/auth-client";
 
-import { Button, Input } from "@interviews-tool/web-ui";
-import { Label } from "@interviews-tool/web-ui-stylex";
+import { Button } from "@interviews-tool/web-ui";
+import { Input, Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 
 export default function SignUpForm() {

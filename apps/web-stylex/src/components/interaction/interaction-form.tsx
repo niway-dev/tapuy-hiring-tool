@@ -1,7 +1,7 @@
+import * as stylex from "@stylexjs/stylex";
 import { useEffect, useRef, useState } from "react";
 import {
   Button,
-  Input,
   MarkdownContent,
   Select,
   SelectContent,
@@ -10,7 +10,7 @@ import {
   SelectValue,
   cn,
 } from "@interviews-tool/web-ui";
-import { Label } from "@interviews-tool/web-ui-stylex";
+import { Input, Label } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { INTERACTION_TYPE_VALUES, type InteractionType } from "@interviews-tool/domain/constants";
 import { useCreateInteraction, type CreateInteractionInput } from "@/hooks/use-interactions";
@@ -26,6 +26,10 @@ export const CONTENT_MAX = 10000;
 const MIN_HEIGHT = 200;
 
 export const INTERACTION_CONTENT_ID = "interaction-content";
+
+const styles = stylex.create({
+  flex1: { flex: "1 1 0%", minWidth: 0 },
+});
 
 interface InteractionFormProps {
   hiringProcessId: string;
@@ -254,7 +258,7 @@ export function InteractionForm({
         </Select>
         <Input
           id="interaction-title"
-          className="h-9 min-w-0 flex-1"
+          style={styles.flex1}
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={t("titlePlaceholder")}

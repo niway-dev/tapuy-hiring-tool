@@ -13,8 +13,8 @@ listed here.
 | skeleton         |              0 |       |     | done                                                        |
 | badge            |              2 |       |     | todo                                                        |
 | status-badge     |              0 |       |     | todo                                                        |
-| input            |              0 |       |     | todo                                                        |
-| textarea         |              0 |       |     | todo                                                        |
+| input            |              0 |       |     | done                                                        |
+| textarea         |              0 |       |     | done                                                        |
 | checkbox         |              0 |       |     | todo                                                        |
 | card             |              7 |       |     | todo                                                        |
 | alert            |             10 |       |     | todo                                                        |
