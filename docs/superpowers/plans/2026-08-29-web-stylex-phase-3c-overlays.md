@@ -10,7 +10,7 @@
 
 **Spec:** `docs/tailwind-to-stylex-migration/spec-web-stylex.md` — D4, D5, D6, D7, D8.
 **Conventions — read before Task 1:** `docs/tailwind-to-stylex-migration/05-porting-conventions.md`.
-**Prerequisites:** Phase 3A and 3B merged. This plan reuses `icon` (`src/lib/icon.ts`) and `variant()` (`src/lib/variants.ts`).
+**Prerequisites:** Phase 3A and 3B merged. This plan reuses `icon` (`src/lib/icon.ts`). There is no shared `variant()` helper — Phase 3A created one and removed it after finding `@stylexjs/babel-plugin` dead-code-eliminates a `stylex.create()` binding whose only access is through a function call (see `05-porting-conventions.md` §3.3). Index every variant/size namespace directly at the call site: `map[key ?? "default"]`.
 
 ## Global Constraints
 
@@ -326,7 +326,7 @@ Log in on both, open the same dialog on each, and compare side by side: size, pa
 
 **Interfaces:**
 
-- Consumes: `motion`, `icon`, `variant()`.
+- Consumes: `motion`, `icon`.
 - Produces: `AlertDialog`, `AlertDialogTrigger`, `AlertDialogContent`, `AlertDialogHeader`, `AlertDialogFooter`, `AlertDialogTitle`, `AlertDialogDescription`, `AlertDialogAction`, `AlertDialogCancel`, plus `*Props`.
 
 160 lines, 6 hard selectors, same animation set as `Dialog`. Reuse Task 2's convention rather than inventing a second one.
@@ -376,7 +376,7 @@ Expect 4 files. All are authenticated.
 
 **Interfaces:**
 
-- Consumes: `motion`, `icon`, `variant()`.
+- Consumes: `motion`, `icon`.
 - Produces: `DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuCheckboxItem`, `DropdownMenuLabel`, `DropdownMenuSeparator`, `DropdownMenuGroup`, plus whatever else the source exports, and their `*Props`.
 
 **241 lines, 30 hard selectors** — the largest single translation in the migration. Everything in Tasks 1–3 exists so this one can be done with settled conventions.
@@ -504,7 +504,7 @@ attribute selector."
 
 **Interfaces:**
 
-- Consumes: `motion`, `icon`, `variant()`.
+- Consumes: `motion`, `icon`.
 - Produces: `Select`, `SelectTrigger`, `SelectValue`, `SelectContent`, `SelectItem`, plus whatever else the source exports, and their `*Props`.
 
 187 lines, **21 hard selectors**, 7 call sites. Last task of the phase.
@@ -651,6 +651,6 @@ The body must lead with the coverage caveat, not bury it: **none of these five c
 
 **Placeholders:** `motion.ts` is complete and is the module Tasks 2–5 depend on. The per-component `stylex.create` blocks show the open/closed animation pattern in full and instruct transcription of layout values from the source, because those must come from the file being ported. Every test file is complete. Every verification command is exact.
 
-**Type consistency:** `motion`'s eight keyframe names are defined in Task 1 and consumed by name in Tasks 2–5. `icon` (`xs`/`sm`/`md`) comes from Phase 3A. `variant(map, key, fallback)` is used with its real 3-argument signature. `Omit<…, "className"> & { style?: StyleXStyles }` matches 3A and 3B.
+**Type consistency:** `motion`'s eight keyframe names are defined in Task 1 and consumed by name in Tasks 2–5. `icon` (`xs`/`sm`/`md` = 12/14/16px) comes from Phase 3A. Variant/size namespaces are indexed directly at each call site (`map[key ?? "default"]`) — there is no shared `variant()` helper; see the note at the top of this plan. `Omit<…, "className" | "style"> & { style?: StyleXStyles }` matches 3A and 3B.
 
 **The honest weakness of this plan:** five components, roughly 60 hard selectors, and **no automated visual verification of any open state**. Every task compensates with tests that render the open state and a mandatory manual side-by-side check, and every task is required to say so in its report. If `COMPARE_EMAIL` / `COMPARE_PASSWORD` become available before this plan runs, use the full 28-screenshot harness instead — it would turn the weakest-gated phase of the migration into a properly gated one, and it is worth waiting for.

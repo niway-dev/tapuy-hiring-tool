@@ -168,7 +168,6 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import * as React from "react";
 
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
-import { variant } from "../lib/variants";
 
 const styles = stylex.create({
   card: {
@@ -200,7 +199,7 @@ export function Card({ style, size, ...props }: CardProps) {
   return (
     <div
       data-slot="card"
-      {...stylex.props(styles.card, variant(cardSize, size, "default"), style)}
+      {...stylex.props(styles.card, cardSize[size ?? "default"], style)}
       {...props}
     />
   );
@@ -439,7 +438,7 @@ Adjust the prop names to whatever the real Base UI accordion takes — read the 
 
 **Interfaces:**
 
-- Consumes: `variant()` from `../lib/variants`; `icon` from `../lib/icon`.
+- Consumes: `icon` from `../lib/icon`.
 - Produces: `Alert`, `AlertTitle`, `AlertDescription`, `AlertAction`, and their `*Props`.
 
 76 lines, **1 `cva`**, 10 hard selectors.
@@ -455,13 +454,13 @@ Note the `grep -v`: `AlertDialog` is a **different component**, ported in Phase 
 
 - [ ] **Step 2: The ten hard selectors**
 
-| Selector                                                         | Ruling                                                                                                                                                                                                                                                |
-| ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `cva` variants (`default`, `destructive`, …)                     | A `stylex.create` namespace selected by `variant(alertVariant, variant, "default")`.                                                                                                                                                                  |
-| `data-[slot=alert-description]:text-destructive`                 | The parent's variant reaching into a child. Pass the variant down: `AlertDescription` takes its own `variant` prop, or `Alert` renders it via context. **Prefer the explicit prop** — it is one line at each call site and needs no context plumbing. |
-| `data-[slot=alert-action]:pr-18`, `:relative`                    | Parent reacts to a child. Explicit prop on `Alert`: `hasAction?: boolean`.                                                                                                                                                                            |
-| `[&_a]:underline` ×2, `:underline-offset-3` ×2, `[&_a]:hover` ×2 | Links in caller content → plain CSS per D8, same ruling as Task 3.                                                                                                                                                                                    |
-| `[&_p:not(:last-child)]:mb-2`                                    | Same.                                                                                                                                                                                                                                                 |
+| Selector                                                         | Ruling                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cva` variants (`default`, `destructive`, …)                     | A `stylex.create` namespace, indexed directly: `alertVariant[v ?? "default"]`. Never through a shared helper function — see `05-porting-conventions.md` §3.3 for why (`@stylexjs/babel-plugin` dead-code-eliminates a `stylex.create()` binding whose only access is through a function call, producing a `ReferenceError` at runtime; found and fixed in Phase 3A, `status-badge.tsx`). |
+| `data-[slot=alert-description]:text-destructive`                 | The parent's variant reaching into a child. Pass the variant down: `AlertDescription` takes its own `variant` prop, or `Alert` renders it via context. **Prefer the explicit prop** — it is one line at each call site and needs no context plumbing.                                                                                                                                    |
+| `data-[slot=alert-action]:pr-18`, `:relative`                    | Parent reacts to a child. Explicit prop on `Alert`: `hasAction?: boolean`.                                                                                                                                                                                                                                                                                                               |
+| `[&_a]:underline` ×2, `:underline-offset-3` ×2, `[&_a]:hover` ×2 | Links in caller content → plain CSS per D8, same ruling as Task 3.                                                                                                                                                                                                                                                                                                                       |
+| `[&_p:not(:last-child)]:mb-2`                                    | Same.                                                                                                                                                                                                                                                                                                                                                                                    |
 
 - [ ] **Step 3: Write the failing test**
 
@@ -531,7 +530,7 @@ describe("Alert", () => {
 
 **Interfaces:**
 
-- Consumes: `variant()` from `../lib/variants`; `icon` from `../lib/icon`.
+- Consumes: `icon` from `../lib/icon`.
 - Produces: `Button`, `ButtonProps`.
 
 Only 56 lines, but **15 hard selectors**, **1 `cva`**, and **16 call sites** — the largest blast radius in the migration. It goes last in this plan on purpose.
@@ -624,14 +623,14 @@ describe("Button", () => {
 cd packages/web-ui-stylex && bunx vitest run src/components/button.test.tsx
 ```
 
-- [ ] **Step 5: Write the component.** Read the `cva` block and transcribe every variant and size. The composition order in `stylex.props` matters and must be:
+- [ ] **Step 5: Write the component.** Read the `cva` block and transcribe every variant and size. **Index every namespace directly — never through a shared helper function** (see `05-porting-conventions.md` §3.3: `@stylexjs/babel-plugin` dead-code-eliminates a `stylex.create()` binding whose only access is through a function call, since its static analysis can't see the member expression hidden inside the call — this produces a `ReferenceError` at runtime, not a build error, and it is exactly what happened in Phase 3A's `StatusBadge` task before the fix). Destructure the component's own `variant` prop as `v` so it doesn't collide with anything else in scope. The composition order in `stylex.props` matters and must be:
 
 ```tsx
 {...stylex.props(
   styles.base,
-  variant(byVariant, variant, "default"),
-  variant(bySize, size, "default"),
-  iconSide && variant(iconPadding, `${size ?? "default"}${iconSide === "inline-start" ? "Start" : "End"}`, …),
+  byVariant[v ?? "default"],
+  bySize[size ?? "default"],
+  iconSide && iconPadding[`${size ?? "default"}${iconSide === "inline-start" ? "Start" : "End"}`],
   props["aria-expanded"] ? styles.expanded : null,
   props["aria-invalid"] ? styles.invalid : null,
   style,
@@ -719,6 +718,6 @@ The body must state, per component: call sites moved, how each hard-selector cat
 
 **Placeholders:** the `stylex.create` blocks in Tasks 1 and 5 show their shape with one or two real entries and instruct transcription of the rest from the source. That is deliberate: the values must come from the file being ported, and writing them here from memory would inject errors into a plan whose whole purpose is fidelity. Every test file is complete. Every verification command is exact.
 
-**Type consistency:** `Omit<React.ComponentProps<…>, "className" | "style"> & { style?: StyleXStyles }` is identical across all five components and matches Phase 3A. `variant(map, key, fallback)` is used with its real 3-argument signature. `icon` is consumed from `../lib/icon` with the `xs`/`sm`/`md` keys Phase 3A creates.
+**Type consistency:** `Omit<React.ComponentProps<…>, "className" | "style"> & { style?: StyleXStyles }` is identical across all five components and matches Phase 3A. Every variant/size namespace is indexed directly at the call site (`map[key ?? "default"]`) — no shared `variant()` helper exists; Phase 3A created one and then removed it after finding it causes `@stylexjs/babel-plugin` to dead-code-eliminate the indexed `stylex.create()` binding (see `05-porting-conventions.md` §3.3). `icon` is consumed from `../lib/icon` with the `xs`/`sm`/`md` keys Phase 3A creates (12/14/16px, corrected from an initial 12/16/20 guess — see the `icon.ts` note above).
 
 **Ordering rationale:** `Button` has the most call sites and the most hard selectors but goes last, so the compound-component and variant conventions are settled on four smaller components first. `Table` and `Accordion` go early despite having no visual gate, because their translations are the most mechanical — pseudo-classes and self-styling children — and therefore the least risky to do without one.

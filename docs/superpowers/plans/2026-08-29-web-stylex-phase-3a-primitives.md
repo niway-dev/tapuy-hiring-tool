@@ -692,7 +692,7 @@ describe("Checkbox", () => {
 
 **Interfaces:**
 
-- Consumes: `variant()` from `packages/web-ui-stylex/src/lib/variants.ts`.
+- Produces: nothing shared beyond the component itself. (An earlier draft of this task planned a shared `variant()` helper in `packages/web-ui-stylex/src/lib/variants.ts`; it does not work — see the note at Step 4 — and was removed after this task's own execution found the bug.)
 - Produces: `StatusBadge`, `StatusBadgeProps`, `statusLabels`.
 
 **`Badge` is not ported.** Verify first, then record the finding:
@@ -741,14 +741,13 @@ Adjust `status` values and the label assertion to whatever the real component ac
 
 - [ ] **Step 3: Run it — expect FAIL.**
 
-- [ ] **Step 4: Write the component.** The `cva` block becomes a `stylex.create` namespace with one entry per status, selected with `variant()`:
+- [ ] **Step 4: Write the component.** The `cva` block becomes a `stylex.create` namespace with one entry per status, indexed **directly** at the call site — `byStatus[known ?? "unknown"]` — never through a shared helper function. A prior version of this task routed the selection through a `variant(map, key, fallback)` helper; `@stylexjs/babel-plugin@0.19.0` dead-code-eliminates a `stylex.create()` binding whose only access is hidden inside a function call, which produces `ReferenceError: byStatus is not defined` at runtime (not a build error). See `05-porting-conventions.md` §3.3.
 
 ```tsx
 import * as stylex from "@stylexjs/stylex";
 import type { StyleXStyles } from "@stylexjs/stylex";
 
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
-import { variant } from "../lib/variants";
 
 const base = stylex.create({
   root: {
@@ -836,6 +835,6 @@ The body must state, per component: how many call sites moved, which hard select
 
 **Placeholders:** `StatusBadge`'s `byStatus` block shows one entry and instructs transcription of the rest, because the nine triples must come from the real source rather than my recollection — transcribing them here from memory would be the actual error. Every other code block is complete. Where a token name or value must be checked against the source, the step says so explicitly rather than guessing.
 
-**Type consistency:** `style?: StyleXStyles` with `Omit<…, "className">` is identical across Tasks 1–5. `icon` is created in Task 4 and reused by later plans. `variant()` is consumed in Task 5 with the 3-argument signature it actually has in `packages/web-ui-stylex/src/lib/variants.ts` — `variant(map, key, fallback)`.
+**Type consistency:** `style?: StyleXStyles` with `Omit<…, "className" | "style">` is identical across Tasks 1–5. `icon` is created in Task 4 and reused by later plans, corrected to a 12/14/16px scale after Task 4's own execution found the initial 12/16/20px guess didn't match any real component. Task 5's `cva` replacement indexes its namespace directly (`byStatus[key ?? "unknown"]`) rather than through the `variant()` helper this plan originally specified — that helper was created, found to cause a runtime `ReferenceError` via `@stylexjs/babel-plugin`'s dead-code elimination, and removed; Phases 3B and 3C were corrected to match before either was dispatched.
 
 **Known gap carried in:** the harness reaches 12 of 28 screenshots. Three of these six components are not covered by it, and each task says so at its verification step rather than implying otherwise.

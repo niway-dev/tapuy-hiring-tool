@@ -11,4 +11,3 @@ export {
 } from "./components/status-badge";
 export { Textarea, type TextareaProps } from "./components/textarea";
 export { icon } from "./lib/icon";
-export { variant } from "./lib/variants";

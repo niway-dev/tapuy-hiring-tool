@@ -232,9 +232,22 @@ same `text-sm` the base already sets. Ported code drops it. Finding dead
 Tailwind like this is normal; delete it, and say so in the PR description so the
 reviewer knows the compare diff is expected to stay at 0.
 
-### 3.3 `cva(base, { variants })` → `stylex.create` + `variant()`
+### 3.3 `cva(base, { variants })` → `stylex.create` + direct indexing
 
-See §6. Worked in full on `button.tsx`.
+See §6. Worked in full on `button.tsx`. **Do not route the selection through a
+shared helper function** (an earlier draft of this convention had one, named
+`variant(map, key, fallback)`) — `@stylexjs/babel-plugin@0.19.0`'s dead-style
+elimination only keeps a `stylex.create()` binding alive when it finds a
+_literal_ `MemberExpression` on that binding close enough to the `stylex.props()`
+call for its static analysis to see. Passing the whole namespace object through
+any function call — even one that just does `map[key ?? fallback]` — hides that
+member access from the plugin, so it deletes the entire `stylex.create()`
+declaration as dead code. The result is a `ReferenceError` at runtime, in both
+dev and production builds, and it will not show up as a build error. Index
+directly at the call site instead: `variants[v ?? "default"]`. Confirmed with a
+minimal reproduction against this repo's installed plugin version; see
+`packages/web-ui-stylex/src/components/status-badge.tsx`'s inline comment for
+the full trace.
 
 ### 3.4 `hover:` `focus-visible:` `disabled:` → pseudo-class conditions
 
@@ -567,8 +580,6 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
 
-import { variant } from "../lib/variants";
-
 const styles = stylex.create({
   base: {
     display: "inline-flex",
@@ -660,10 +671,10 @@ function Button({ style, variant: v, size: s, invalid, isExpanded, ...props }: B
       aria-expanded={isExpanded}
       {...stylex.props(
         styles.base,
-        variant(variants, v, "default"),
-        variant(sizes, s, "default"),
+        variants[v ?? "default"],
+        sizes[s ?? "default"],
         invalid && styles.invalid,
-        isExpanded && variant(expanded, v, "default"),
+        isExpanded && expanded[v ?? "default"],
         style,
       )}
       {...props}
@@ -680,8 +691,9 @@ Points that generalise to the other three `cva` sites:
   none of the 4 definitions here need one.
 - **`keyof typeof variants` is the prop type.** Adding a variant to the object
   adds it to the type. No `VariantProps<typeof …>` import, no `cva` dependency.
-- **`variant(map, key, fallback)` replaces `defaultVariants`.** The fallback is
-  passed at the call, not declared in the map.
+- **`map[key ?? "default"]` replaces `defaultVariants`.** The fallback is
+  written at the call, not declared in the map — indexed directly, never
+  through a helper function (see §3.3 for why).
 - **Sizes set numbers, not classes.** `h-9` → `height: 36` straight off §2.1.
   `size-9` → both `width` and `height`.
 - **`aria-expanded:` became an `isExpanded` prop.** See §7.4. It is named
