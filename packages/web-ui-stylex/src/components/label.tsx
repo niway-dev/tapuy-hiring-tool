@@ -5,11 +5,18 @@ import type { StyleXStyles } from "@stylexjs/stylex";
 import * as React from "react";
 
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
+import { disabledMarker } from "./label.stylex";
 
 /* group-data-[disabled=true]:* in Tailwind became when.ancestor here, and
    peer-disabled:* became when.siblingBefore. These are two of the three
    sanctioned stylex.when.* uses in this migration (spec D7): the state lives
-   on another element, so it genuinely cannot be a JS conditional. */
+   on another element, so it genuinely cannot be a JS conditional.
+
+   disabledMarker (./label.stylex.ts) scopes these `when` conditions to a
+   fresh Symbol() unique to this module, instead of stylex.defaultMarker()'s
+   fixed, app-wide-shared "x-default-marker" class — see that file for why
+   the marker itself lives in a separate ".stylex.ts" file. */
+
 const styles = stylex.create({
   root: {
     display: "flex",
@@ -21,16 +28,16 @@ const styles = stylex.create({
     userSelect: "none",
     opacity: {
       default: 1,
-      [stylex.when.ancestor('[data-disabled="true"]')]: 0.5,
-      [stylex.when.siblingBefore(":disabled")]: 0.5,
+      [stylex.when.ancestor('[data-disabled="true"]', disabledMarker)]: 0.5,
+      [stylex.when.siblingBefore(":disabled", disabledMarker)]: 0.5,
     },
     pointerEvents: {
       default: null,
-      [stylex.when.ancestor('[data-disabled="true"]')]: "none",
+      [stylex.when.ancestor('[data-disabled="true"]', disabledMarker)]: "none",
     },
     cursor: {
       default: null,
-      [stylex.when.siblingBefore(":disabled")]: "not-allowed",
+      [stylex.when.siblingBefore(":disabled", disabledMarker)]: "not-allowed",
     },
   },
 });
