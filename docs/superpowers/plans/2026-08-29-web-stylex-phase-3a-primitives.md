@@ -113,12 +113,12 @@ export { Label };
 
 ### The four hard parts, and their rulings
 
-| Tailwind                                                           | Ruling                                                                                                                                                                                                                            |
-| ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `group-data-[disabled=true]:opacity-50` and `:pointer-events-none` | An **ancestor** carries `data-disabled`. This is one of the three sanctioned `stylex.when.*` uses (spec D7). Use `stylex.when.ancestor('[data-disabled="true"]')`. The ancestor must carry `stylex.defaultMarker()` — see Step 4. |
-| `peer-disabled:opacity-50` and `:cursor-not-allowed`               | A **preceding sibling** input is disabled. Sanctioned use: `stylex.when.siblingBefore(":disabled")`.                                                                                                                              |
-| `text-[13px]`                                                      | An arbitrary value, so no scale lookup: `fontSize: 13`.                                                                                                                                                                           |
-| `data-slot="label"`                                                | Keep it. It is a DOM attribute other code and tests may query, not a styling hook.                                                                                                                                                |
+| Tailwind                                                           | Ruling                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `group-data-[disabled=true]:opacity-50` and `:pointer-events-none` | An **ancestor** carries `data-disabled`. This is one of the four sanctioned `stylex.when.*` uses (spec D7). Use `stylex.when.ancestor('[data-disabled="true"]')`. The ancestor must carry a marker — see Step 4. **(As executed: `stylex.defaultMarker()` turned out to compile to one literal class shared app-wide, a collision risk once a second `when.*` consumer exists; the task switched to `stylex.defineMarker()` in its own `*.stylex.ts` file instead — see `label.stylex.ts` and §7.5.)** |
+| `peer-disabled:opacity-50` and `:cursor-not-allowed`               | A **preceding sibling** input is disabled. Sanctioned use: `stylex.when.siblingBefore(":disabled")`.                                                                                                                                                                                                                                                                                                                                                                                                   |
+| `text-[13px]`                                                      | An arbitrary value, so no scale lookup: `fontSize: 13`.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| `data-slot="label"`                                                | Keep it. It is a DOM attribute other code and tests may query, not a styling hook.                                                                                                                                                                                                                                                                                                                                                                                                                     |
 
 - [ ] **Step 1: Write the failing test**
 
@@ -229,7 +229,7 @@ Note the argument order in `stylex.props(styles.root, style)`: **the caller's st
 grep -rn 'data-disabled\|group' apps/web-stylex/src --include='*.tsx' | grep -i 'label\|field' | head
 ```
 
-For each ancestor found, spread `stylex.props(stylex.defaultMarker())` onto it, keeping its existing props. If a call site turns out to have no such ancestor, the `when.ancestor` branch is simply inert there — that is correct, not a bug. Record in your report which files you marked.
+For each ancestor found, spread `stylex.props(<marker>)` onto it, keeping its existing props — as executed, `<marker>` is a `stylex.defineMarker()` result from its own `*.stylex.ts` file, not `stylex.defaultMarker()` (see the correction above). If a call site turns out to have no such ancestor, the `when.ancestor` branch is simply inert there — that is correct, not a bug. Record in your report which files you marked.
 
 - [ ] **Step 5: Run the test — it must pass**
 
@@ -300,7 +300,7 @@ git add packages/web-ui-stylex apps/web-stylex/src docs/tailwind-to-stylex-migra
 git commit -m "feat(web-ui-stylex): port Label and its 8 call sites
 
 group-data-[disabled] became stylex.when.ancestor and peer-disabled became
-stylex.when.siblingBefore — two of the three sanctioned when.* uses (D7).
+stylex.when.siblingBefore — two of the four sanctioned when.* uses (D7).
 The className prop is gone: a Tailwind string passed to a StyleX component
 is a silent no-op, so the break is made visible at compile time."
 ```
@@ -831,7 +831,7 @@ The body must state, per component: how many call sites moved, which hard select
 
 ## Self-review
 
-**Spec coverage:** D4 (components in `web-ui-stylex`, seeded and re-themed) → Tasks 1–5. D5 (`style?: StyleXStyles`, no `className`) → the prop shape in every task. D6 (component + call sites in one PR) → each task flips all its call sites before committing. D7 (`when.*` only where state lives elsewhere) → Task 1's `Label` is two of the three sanctioned sites; Tasks 3 and 4 explicitly rule _against_ `when.*` for `aria-invalid`, which the component owns. D8 (plain CSS survivors) → untouched by this plan.
+**Spec coverage:** D4 (components in `web-ui-stylex`, seeded and re-themed) → Tasks 1–5. D5 (`style?: StyleXStyles`, no `className`) → the prop shape in every task. D6 (component + call sites in one PR) → each task flips all its call sites before committing. D7 (`when.*` only where state lives elsewhere) → Task 1's `Label` is two of the four sanctioned sites; Tasks 3 and 4 explicitly rule _against_ `when.*` for `aria-invalid`, which the component owns. D8 (plain CSS survivors) → untouched by this plan.
 
 **Placeholders:** `StatusBadge`'s `byStatus` block shows one entry and instructs transcription of the rest, because the nine triples must come from the real source rather than my recollection — transcribing them here from memory would be the actual error. Every other code block is complete. Where a token name or value must be checked against the source, the step says so explicitly rather than guessing.
 

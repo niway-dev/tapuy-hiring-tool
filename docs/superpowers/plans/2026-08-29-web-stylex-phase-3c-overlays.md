@@ -656,7 +656,7 @@ The body must lead with the coverage caveat, not bury it: **none of these five c
 
 ## Self-review
 
-**Spec coverage:** D4 → Tasks 1–5. D5 (`style?: StyleXStyles`, no `className`) → every component; Task 6 Step 3 asserts it repo-wide. D6 (component + call sites in one PR) → every task flips its call sites before committing. D7 (`when.*` restricted to the three sanctioned sites) → this plan uses **none**, and says why at each candidate: `side`, `open`, `disabled`, `variant`, `inset` and `size` are all readable in JS from Base UI or from props. D8 (plain CSS survivors) → Task 1 Step 5 allows a plain-CSS block if `sonner`'s API only accepts class names, and Task 6 Step 2 confirms `markdown-content` stays.
+**Spec coverage:** D4 → Tasks 1–5. D5 (`style?: StyleXStyles`, no `className`) → every component; Task 6 Step 3 asserts it repo-wide. D6 (component + call sites in one PR) → every task flips its call sites before committing. D7 (`when.*` restricted to the four sanctioned sites) → this plan uses **none**, and says why at each candidate: `side`, `open`, `disabled`, `variant`, `inset` and `size` are all readable in JS from Base UI or from props. D8 (plain CSS survivors) → Task 1 Step 5 allows a plain-CSS block if `sonner`'s API only accepts class names, and Task 6 Step 2 confirms `markdown-content` stays.
 
 **Placeholders:** `motion.ts` is complete and is the module Tasks 2–5 depend on. The per-component `stylex.create` blocks show the open/closed animation pattern in full and instruct transcription of layout values from the source, because those must come from the file being ported. Every test file is complete. Every verification command is exact.
 

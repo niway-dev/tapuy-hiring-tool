@@ -24,7 +24,7 @@ import { icon } from "../lib/icon";
    still reads as checked (border-primary), matching the source's compound
    `aria-invalid:aria-checked:border-primary` override.
 
-   group-has-disabled/field:opacity-50 is dropped: it is not one of the 3
+   group-has-disabled/field:opacity-50 is dropped: it is not one of the
    sites sanctioned for stylex.when.* (05-porting-conventions.md §7.5). This
    is safe because it was already dead in the *original Tailwind source
    too*, for the same reason: Base UI's CheckboxRoot renders as
