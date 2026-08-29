@@ -191,7 +191,7 @@ const cardSize = stylex.create({
   sm: { gap: 8, paddingBlock: 12 },
 });
 
-export type CardProps = Omit<React.ComponentProps<"div">, "className"> & {
+export type CardProps = Omit<React.ComponentProps<"div">, "className" | "style"> & {
   style?: StyleXStyles;
   size?: keyof typeof cardSize;
 };
@@ -717,6 +717,6 @@ The body must state, per component: call sites moved, how each hard-selector cat
 
 **Placeholders:** the `stylex.create` blocks in Tasks 1 and 5 show their shape with one or two real entries and instruct transcription of the rest from the source. That is deliberate: the values must come from the file being ported, and writing them here from memory would inject errors into a plan whose whole purpose is fidelity. Every test file is complete. Every verification command is exact.
 
-**Type consistency:** `Omit<React.ComponentProps<…>, "className"> & { style?: StyleXStyles }` is identical across all five components and matches Phase 3A. `variant(map, key, fallback)` is used with its real 3-argument signature. `icon` is consumed from `../lib/icon` with the `xs`/`sm`/`md` keys Phase 3A creates.
+**Type consistency:** `Omit<React.ComponentProps<…>, "className" | "style"> & { style?: StyleXStyles }` is identical across all five components and matches Phase 3A. `variant(map, key, fallback)` is used with its real 3-argument signature. `icon` is consumed from `../lib/icon` with the `xs`/`sm`/`md` keys Phase 3A creates.
 
 **Ordering rationale:** `Button` has the most call sites and the most hard selectors but goes last, so the compound-component and variant conventions are settled on four smaller components first. `Table` and `Accordion` go early despite having no visual gate, because their translations are the most mechanical — pseudo-classes and self-styling children — and therefore the least risky to do without one.

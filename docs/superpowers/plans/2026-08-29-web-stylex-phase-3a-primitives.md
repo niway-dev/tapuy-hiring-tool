@@ -81,7 +81,7 @@ Do this task first even though `Skeleton` is simpler. `Label` is the smallest co
 **Interfaces:**
 
 - Produces: `export function Label(props: LabelProps)` where
-  `type LabelProps = Omit<React.ComponentProps<"label">, "className"> & { style?: StyleXStyles }`.
+  `type LabelProps = Omit<React.ComponentProps<"label">, "className" | "style"> & { style?: StyleXStyles }`.
   Every later task in this plan uses this exact prop shape.
 
 ### The source you are porting
@@ -210,7 +210,7 @@ const styles = stylex.create({
   },
 });
 
-export type LabelProps = Omit<React.ComponentProps<"label">, "className"> & {
+export type LabelProps = Omit<React.ComponentProps<"label">, "className" | "style"> & {
   style?: StyleXStyles;
 };
 
@@ -388,7 +388,7 @@ const styles = stylex.create({
   },
 });
 
-export type SkeletonProps = Omit<React.ComponentProps<"div">, "className"> & {
+export type SkeletonProps = Omit<React.ComponentProps<"div">, "className" | "style"> & {
   style?: StyleXStyles;
 };
 
@@ -565,7 +565,7 @@ const styles = stylex.create({
   invalid: { borderColor: colors.danger },
 });
 
-export type InputProps = Omit<React.ComponentProps<"input">, "className"> & {
+export type InputProps = Omit<React.ComponentProps<"input">, "className" | "style"> & {
   style?: StyleXStyles;
 };
 
