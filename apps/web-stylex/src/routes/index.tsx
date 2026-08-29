@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Button, Card, StatusBadge, TapuyMark } from "@interviews-tool/web-ui";
+import { Button, Card, TapuyMark } from "@interviews-tool/web-ui";
+import { StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import { Star } from "lucide-react";
 

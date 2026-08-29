@@ -7,28 +7,28 @@ listed here.
 
 ## Components (`packages/web-ui-stylex`) — filled in Phase 3
 
-| Component        | Hard selectors | Owner | PR  | Status                                                      |
-| ---------------- | -------------: | ----- | --- | ----------------------------------------------------------- |
-| label            |              2 |       |     | done                                                        |
-| skeleton         |              0 |       |     | done                                                        |
-| badge            |              2 |       |     | todo                                                        |
-| status-badge     |              0 |       |     | todo                                                        |
-| input            |              0 |       |     | done                                                        |
-| textarea         |              0 |       |     | done                                                        |
-| checkbox         |              0 |       |     | done                                                        |
-| card             |              7 |       |     | todo                                                        |
-| alert            |             10 |       |     | todo                                                        |
-| table            |              4 |       |     | todo                                                        |
-| accordion        |              7 |       |     | todo                                                        |
-| button           |             10 |       |     | todo                                                        |
-| dialog           |              0 |       |     | todo                                                        |
-| alert-dialog     |              6 |       |     | todo                                                        |
-| sonner           |              0 |       |     | todo                                                        |
-| dropdown-menu    |             30 |       |     | todo                                                        |
-| select           |             20 |       |     | todo                                                        |
-| tapuy-mark       |              0 |       |     | todo                                                        |
-| markdown-content |      plain CSS |       |     | todo                                                        |
-| test-component   |              — |       |     | retire — dead scaffold (Tailwind classes), not to be ported |
+| Component        | Hard selectors | Owner | PR  | Status                                            |
+| ---------------- | -------------: | ----- | --- | ------------------------------------------------- |
+| label            |              2 |       |     | done                                              |
+| skeleton         |              0 |       |     | done                                              |
+| badge            |              2 |       |     | retire — unused                                   |
+| status-badge     |              0 |       |     | done                                              |
+| input            |              0 |       |     | done                                              |
+| textarea         |              0 |       |     | done                                              |
+| checkbox         |              0 |       |     | done                                              |
+| card             |              7 |       |     | todo                                              |
+| alert            |             10 |       |     | todo                                              |
+| table            |              4 |       |     | todo                                              |
+| accordion        |              7 |       |     | todo                                              |
+| button           |             10 |       |     | todo                                              |
+| dialog           |              0 |       |     | todo                                              |
+| alert-dialog     |              6 |       |     | todo                                              |
+| sonner           |              0 |       |     | todo                                              |
+| dropdown-menu    |             30 |       |     | todo                                              |
+| select           |             20 |       |     | todo                                              |
+| tapuy-mark       |              0 |       |     | todo                                              |
+| markdown-content |      plain CSS |       |     | todo                                              |
+| test-component   |              — |       |     | retire — unused (dead scaffold, Tailwind classes) |
 
 ## App files (`apps/web-stylex/src`) — filled in Phase 4
 

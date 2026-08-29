@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
+import * as stylex from "@stylexjs/stylex";
 import { X } from "lucide-react";
 import { toast } from "sonner";
 
-import { Button, StatusBadge, cn } from "@interviews-tool/web-ui";
+import { Button, cn } from "@interviews-tool/web-ui";
+import { StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import type { HiringProcessStatus } from "@interviews-tool/domain/constants";
 
@@ -14,6 +16,10 @@ import { useSlashMenu } from "./slash-menu";
 import { EditorToolbar, useMdEditing } from "./editor-toolbar";
 import { QuestionsPanel } from "./questions-panel";
 import { CONTENT_MIN } from "./interaction-form";
+
+const styles = stylex.create({
+  shrink0: { flexShrink: 0 },
+});
 
 interface LiveNoteProps {
   processId: string;
@@ -70,7 +76,7 @@ function LiveTopBar({
       </span>
       <span className="shrink-0 text-sm font-medium text-text">{companyName}</span>
       {jobTitle && <span className="min-w-0 truncate text-[13px] text-text-muted">{jobTitle}</span>}
-      <StatusBadge status={status} label={statusLabel} className="shrink-0" />
+      <StatusBadge status={status} label={statusLabel} style={styles.shrink0} />
       {salaryText && (
         <span className="mono hidden shrink-0 text-[13px] text-text-secondary lg:inline">
           {salaryText}

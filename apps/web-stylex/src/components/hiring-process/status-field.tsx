@@ -4,9 +4,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  StatusBadge,
 } from "@interviews-tool/web-ui";
-import { Label } from "@interviews-tool/web-ui-stylex";
+import { Label, StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import type { HiringProcessStatus } from "@interviews-tool/domain/constants";
 import { useStatusLabel } from "@/lib/i18n-labels";

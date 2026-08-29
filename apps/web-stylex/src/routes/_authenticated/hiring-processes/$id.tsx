@@ -15,10 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  StatusBadge,
   cn,
 } from "@interviews-tool/web-ui";
-import { Input, Skeleton } from "@interviews-tool/web-ui-stylex";
+import { Input, Skeleton, StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { CURRENCY_INFO, SALARY_RATE_TYPES } from "@interviews-tool/domain/constants";
 import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
