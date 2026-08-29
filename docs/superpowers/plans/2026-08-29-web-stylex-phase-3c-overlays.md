@@ -392,14 +392,14 @@ grep -rln 'DropdownMenu' apps/web-stylex/src --include='*.tsx'
 
 Paste the full inventory into your report and classify **every** line before writing code. Measured shape:
 
-| Selector                                            |           Count | Ruling                                                                                                                                             |
-| --------------------------------------------------- | --------------: | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `data-[variant=destructive]:focus…`                 |               5 | A **prop**: `DropdownMenuItem` gains `variant?: "default" \| "destructive"` → variant namespace, with `:focus` as a normal pseudo-class inside it. |
-| `[&_svg]:shrink-0`, `[&_svg]:pointer-events-none`   |          4 each | Gone — icons style themselves with `{...stylex.props(icon.sm)}`.                                                                                   |
-| `data-[inset]:pl-8`                                 |               3 | A **prop**: `inset?: boolean`.                                                                                                                     |
-| `data-[side=…]:slide-in-from-*`                     | 8 (4 sides × 2) | **Ruling 2** — read the resolved side from Base UI and pick the keyframe in JS.                                                                    |
-| `data-[disabled]:pointer-events-none`, `:opacity-*` |              2+ | Base UI exposes item disabled state; read it in JS. Do **not** use `when.*`.                                                                       |
-| remaining `data-[state=open\|closed]`               |            rest | Same open/closed convention as Task 2.                                                                                                             |
+| Selector                                            |           Count | Ruling                                                                                                                                                                    |
+| --------------------------------------------------- | --------------: | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `data-[variant=destructive]:focus…`                 |               5 | A **prop**: `DropdownMenuItem` gains `variant?: "default" \| "destructive"` → variant namespace, with `:focus` as a normal pseudo-class inside it.                        |
+| `[&_svg]:shrink-0`, `[&_svg]:pointer-events-none`   |          4 each | Gone — icons style themselves with `{...stylex.props(icon.md)}` (`size-4` = 16px, per Phase 3A's measured `icon.ts` scale, `e4704f7` — **not** `icon.sm`, which is 14px). |
+| `data-[inset]:pl-8`                                 |               3 | A **prop**: `inset?: boolean`.                                                                                                                                            |
+| `data-[side=…]:slide-in-from-*`                     | 8 (4 sides × 2) | **Ruling 2** — read the resolved side from Base UI and pick the keyframe in JS.                                                                                           |
+| `data-[disabled]:pointer-events-none`, `:opacity-*` |              2+ | Base UI exposes item disabled state; read it in JS. Do **not** use `when.*`.                                                                                              |
+| remaining `data-[state=open\|closed]`               |            rest | Same open/closed convention as Task 2.                                                                                                                                    |
 
 - [ ] **Step 2: Write the failing test — the open menu is the whole point**
 
