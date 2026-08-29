@@ -1,8 +1,9 @@
+import * as stylex from "@stylexjs/stylex";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 
-import { Skeleton } from "@interviews-tool/web-ui";
+import { Skeleton } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import { HiringProcessForm } from "@/components/hiring-process/hiring-process-form";
 import { useHiringProcess, useUpdateHiringProcess } from "@/hooks/use-hiring-processes";
@@ -15,6 +16,12 @@ import {
 
 export const Route = createFileRoute("/_authenticated/hiring-processes/$id_/edit")({
   component: EditHiringProcessPage,
+});
+
+const skeletonStyles = stylex.create({
+  h52Wfull: { height: 52, width: "100%" },
+  h9: { height: 36 },
+  h11: { height: 44, maxWidth: 420 },
 });
 
 function EditHiringProcessPage() {
@@ -87,12 +94,12 @@ function EditHiringProcessPage() {
         </div>
       ) : isLoading || isLoadingCompanyDetails ? (
         <div className="grid gap-7">
-          <Skeleton className="h-[52px] w-full bg-surface-2" />
+          <Skeleton style={skeletonStyles.h52Wfull} />
           <div className="grid grid-cols-[1fr_220px] gap-6">
-            <Skeleton className="h-9 bg-surface-2" />
-            <Skeleton className="h-9 bg-surface-2" />
+            <Skeleton style={skeletonStyles.h9} />
+            <Skeleton style={skeletonStyles.h9} />
           </div>
-          <Skeleton className="h-11 max-w-[420px] bg-surface-2" />
+          <Skeleton style={skeletonStyles.h11} />
         </div>
       ) : !hiringProcess ? (
         <div className="rounded-xl border border-border bg-surface p-6">

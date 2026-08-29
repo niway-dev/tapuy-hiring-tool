@@ -14,7 +14,6 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-  StatusBadge,
   Table,
   TableBody,
   TableCell,
@@ -22,6 +21,7 @@ import {
   TableHeader,
   TableRow,
 } from "@interviews-tool/web-ui";
+import { StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useTranslations, useFormatter } from "@interviews-tool/i18n";
 import { useArchiveReasonLabel, useStatusLabel } from "@/lib/i18n-labels";
 import { useAgeLabel, useSalaryFormatter } from "@/lib/format";

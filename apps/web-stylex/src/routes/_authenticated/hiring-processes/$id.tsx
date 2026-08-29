@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { useEffect, useState } from "react";
 import { createFileRoute, Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useHotkey } from "@tanstack/react-hotkeys";
@@ -14,11 +15,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   Button,
-  Input,
-  Skeleton,
-  StatusBadge,
   cn,
 } from "@interviews-tool/web-ui";
+import { Input, Skeleton, StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { CURRENCY_INFO, SALARY_RATE_TYPES } from "@interviews-tool/domain/constants";
 import type { Currency, SalaryRateType } from "@interviews-tool/domain/constants";
@@ -48,6 +47,17 @@ export const Route = createFileRoute("/_authenticated/hiring-processes/$id")({
   validateSearch: (search: Record<string, unknown>): { live?: boolean } => ({
     live: search.live === true || search.live === "true" ? true : undefined,
   }),
+});
+
+const inputStyles = stylex.create({
+  h40Flex1: { height: 40, flex: "1 1 0%" },
+});
+
+const skeletonStyles = stylex.create({
+  h8W64: { height: 32, width: 256 },
+  h4W40: { height: 16, width: 160, marginTop: 8 },
+  h3W16: { height: 12, width: 64 },
+  h7W24: { height: 28, width: 96, marginTop: 8 },
 });
 
 const STICKY_THRESHOLD = 240;
@@ -548,7 +558,7 @@ function HiringProcessDetailPage() {
                   }
                 }}
                 placeholder={tCapture("quickCapturePlaceholder")}
-                className="h-10 flex-1"
+                style={inputStyles.h40Flex1}
               />
               <Button
                 variant="secondary"
@@ -690,13 +700,13 @@ function DateField({ label, date }: { label: string; date: Date }) {
 function ProcessCardSkeleton() {
   return (
     <section className="rounded-xl border border-border bg-surface p-6">
-      <Skeleton className="h-8 w-64 bg-surface-2" />
-      <Skeleton className="mt-2 h-4 w-40 bg-surface-2" />
+      <Skeleton style={skeletonStyles.h8W64} />
+      <Skeleton style={skeletonStyles.h4W40} />
       <div className="mt-6 grid grid-cols-2 gap-6 border-t border-border pt-6 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i}>
-            <Skeleton className="h-3 w-16 bg-surface-2" />
-            <Skeleton className="mt-2 h-7 w-24 bg-surface-2" />
+            <Skeleton style={skeletonStyles.h3W16} />
+            <Skeleton style={skeletonStyles.h7W24} />
           </div>
         ))}
       </div>

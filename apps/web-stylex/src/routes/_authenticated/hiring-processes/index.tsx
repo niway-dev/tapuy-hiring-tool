@@ -1,3 +1,4 @@
+import * as stylex from "@stylexjs/stylex";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { z } from "zod";
 import {
@@ -9,15 +10,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  Input,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Skeleton,
   TapuyMark,
 } from "@interviews-tool/web-ui";
+import { Input, Skeleton } from "@interviews-tool/web-ui-stylex";
+import { typography } from "@interviews-tool/design-tokens/tokens.stylex";
 import {
   ARCHIVE_REASONS,
   HIRING_PROCESS_SCOPE_VALUES,
@@ -86,6 +87,26 @@ const dashboardSearchSchema = z.object({
 
 type DashboardSearch = z.infer<typeof dashboardSearchSchema>;
 
+const inputStyles = stylex.create({
+  monoW96: {
+    fontFamily: typography.mono,
+    fontVariantNumeric: "tabular-nums",
+    width: 96,
+  },
+});
+
+const skeletonStyles = stylex.create({
+  h3W24: { height: 12, width: 96 },
+  h3W40: { height: 12, width: 160 },
+  h3W20: { height: 12, width: 80 },
+  h4W32: { height: 16, width: 128 },
+  h4W56: { height: 16, width: 224 },
+  h5W24: { height: 20, width: 96, borderRadius: 5 },
+  h4W28: { height: 16, width: 112 },
+  h5W24Rounded: { height: 20, width: 96, borderRadius: 5 },
+  h86Rounded: { height: 86, borderRadius: 10 },
+});
+
 export const Route = createFileRoute("/_authenticated/hiring-processes/")({
   validateSearch: dashboardSearchSchema,
   loaderDeps: ({ search }) => search,
@@ -127,16 +148,16 @@ function TableSkeleton() {
   return (
     <div>
       <div className="flex gap-16 border-b border-border pb-3">
-        <Skeleton className="h-3 w-24" />
-        <Skeleton className="h-3 w-40" />
-        <Skeleton className="h-3 w-20" />
+        <Skeleton style={skeletonStyles.h3W24} />
+        <Skeleton style={skeletonStyles.h3W40} />
+        <Skeleton style={skeletonStyles.h3W20} />
       </div>
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="flex items-center gap-16 border-b border-border py-3.5">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-4 w-56" />
-          <Skeleton className="h-5 w-24 rounded-[5px]" />
-          <Skeleton className="h-4 w-28" />
+          <Skeleton style={skeletonStyles.h4W32} />
+          <Skeleton style={skeletonStyles.h4W56} />
+          <Skeleton style={skeletonStyles.h5W24} />
+          <Skeleton style={skeletonStyles.h4W28} />
         </div>
       ))}
     </div>
@@ -152,10 +173,10 @@ function BoardSkeleton() {
           key={i}
           className="w-[272px] shrink-0 rounded-xl border border-border bg-surface-2 p-3"
         >
-          <Skeleton className="h-5 w-24 rounded-[5px]" />
+          <Skeleton style={skeletonStyles.h5W24Rounded} />
           <div className="mt-3 grid gap-2">
-            <Skeleton className="h-[86px] rounded-[10px]" />
-            <Skeleton className="h-[86px] rounded-[10px]" />
+            <Skeleton style={skeletonStyles.h86Rounded} />
+            <Skeleton style={skeletonStyles.h86Rounded} />
           </div>
         </div>
       ))}
@@ -569,7 +590,7 @@ function HiringProcessesComponent() {
               type="number"
               min={0}
               placeholder={t("minSalary")}
-              className="mono h-9 w-24"
+              style={inputStyles.monoW96}
               value={filters.salaryMin ?? ""}
               onChange={(e) => {
                 const val = e.target.value;
@@ -580,7 +601,7 @@ function HiringProcessesComponent() {
               type="number"
               min={0}
               placeholder={t("maxSalary")}
-              className="mono h-9 w-24"
+              style={inputStyles.monoW96}
               value={filters.salaryMax ?? ""}
               onChange={(e) => {
                 const val = e.target.value;

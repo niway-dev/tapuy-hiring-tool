@@ -5,14 +5,13 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@interviews-tool/web-ui";
+import { Input, Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import { INTERACTION_TYPE_VALUES, type InteractionType } from "@interviews-tool/domain/constants";
 import {
@@ -101,7 +100,6 @@ export function EditInteractionDialog({
               </Label>
               <Input
                 id="edit-interaction-title"
-                className="h-9"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 maxLength={100}

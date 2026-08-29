@@ -1,17 +1,25 @@
+import * as stylex from "@stylexjs/stylex";
+
 import {
-  Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-  Textarea,
 } from "@interviews-tool/web-ui";
+import { Input, Label, Textarea } from "@interviews-tool/web-ui-stylex";
+import { typography } from "@interviews-tool/design-tokens/tokens.stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import type { HiringProcessFormApi } from "./hiring-process-form";
 
 const CONTACTED_VIA_VALUES = ["LinkedIn", "Email", "Facebook", "Other"] as const;
+
+const styles = stylex.create({
+  mono: {
+    fontFamily: typography.mono,
+    fontVariantNumeric: "tabular-nums",
+  },
+});
 
 function isValidWebsite(value: string): boolean {
   try {
@@ -48,7 +56,6 @@ export function CompanyDetailsFields({
             <Label htmlFor="website">{t("website")}</Label>
             <Input
               id="website"
-              className="h-9"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               placeholder={t("websitePlaceholder")}
@@ -67,7 +74,6 @@ export function CompanyDetailsFields({
             <Label htmlFor="location">{t("location")}</Label>
             <Input
               id="location"
-              className="h-9"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               placeholder={t("locationPlaceholder")}
@@ -116,7 +122,6 @@ export function CompanyDetailsFields({
             <Label htmlFor="contactPerson">{t("contactPerson")}</Label>
             <Input
               id="contactPerson"
-              className="h-9"
               value={field.state.value}
               onChange={(e) => field.handleChange(e.target.value)}
               placeholder={t("contactPersonPlaceholder")}
@@ -142,7 +147,7 @@ export function CompanyDetailsFields({
               id="interviewSteps"
               type="number"
               min={0}
-              className="mono h-9"
+              style={styles.mono}
               value={field.state.value ?? ""}
               onChange={(e) =>
                 field.handleChange(e.target.value ? Number(e.target.value) : undefined)

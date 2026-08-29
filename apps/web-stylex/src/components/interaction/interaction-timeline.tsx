@@ -1,4 +1,6 @@
-import { Button, Skeleton, TapuyMark, cn } from "@interviews-tool/web-ui";
+import * as stylex from "@stylexjs/stylex";
+import { Button, TapuyMark, cn } from "@interviews-tool/web-ui";
+import { Skeleton } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import { useInteractions } from "@/hooks/use-interactions";
 import { InteractionCard } from "./interaction-card";
@@ -10,6 +12,13 @@ interface InteractionTimelineProps {
   onEdit?: (interaction: Interaction) => void;
   onDelete?: (interaction: Interaction) => void;
 }
+
+const skeletonStyles = stylex.create({
+  h22W16: { height: 22, width: 64 },
+  h3W36: { height: 12, width: 144 },
+  h4W48: { height: 16, width: 192, marginBottom: 8 },
+  h16Wfull: { height: 64, width: "100%" },
+});
 
 /* Only `offer` and `rejection` nodes carry color; every other node is muted. */
 function nodeColor(type: Interaction["type"]) {
@@ -43,11 +52,11 @@ export function InteractionTimeline({
             <div className="absolute -left-[28px] top-4 size-2 rounded-full bg-surface-2" />
             <div className="rounded-xl border border-border bg-surface px-5 py-[18px]">
               <div className="mb-3 flex items-center gap-2.5">
-                <Skeleton className="h-[22px] w-16 bg-surface-2" />
-                <Skeleton className="h-3 w-36 bg-surface-2" />
+                <Skeleton style={skeletonStyles.h22W16} />
+                <Skeleton style={skeletonStyles.h3W36} />
               </div>
-              <Skeleton className="mb-2 h-4 w-48 bg-surface-2" />
-              <Skeleton className="h-16 w-full bg-surface-2" />
+              <Skeleton style={skeletonStyles.h4W48} />
+              <Skeleton style={skeletonStyles.h16Wfull} />
             </div>
           </article>
         ))}

@@ -21,6 +21,7 @@
     "@interviews-tool/infra-db": "workspace:*",
     "@interviews-tool/infra-env": "workspace:*",
     "@interviews-tool/infra-prisma-db": "workspace:*",
+    "@interviews-tool/web-ui-stylex": "workspace:*",
     "@stylexjs/stylex": "0.19.0",
     "@tanstack/react-form": "^1.23.5",
     "@tanstack/react-hotkeys": "0.10.0",

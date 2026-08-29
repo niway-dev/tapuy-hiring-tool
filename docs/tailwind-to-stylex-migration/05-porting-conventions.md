@@ -232,9 +232,22 @@ same `text-sm` the base already sets. Ported code drops it. Finding dead
 Tailwind like this is normal; delete it, and say so in the PR description so the
 reviewer knows the compare diff is expected to stay at 0.
 
-### 3.3 `cva(base, { variants })` → `stylex.create` + `variant()`
+### 3.3 `cva(base, { variants })` → `stylex.create` + direct indexing
 
-See §6. Worked in full on `button.tsx`.
+See §6. Worked in full on `button.tsx`. **Do not route the selection through a
+shared helper function** (an earlier draft of this convention had one, named
+`variant(map, key, fallback)`) — `@stylexjs/babel-plugin@0.19.0`'s dead-style
+elimination only keeps a `stylex.create()` binding alive when it finds a
+_literal_ `MemberExpression` on that binding close enough to the `stylex.props()`
+call for its static analysis to see. Passing the whole namespace object through
+any function call — even one that just does `map[key ?? fallback]` — hides that
+member access from the plugin, so it deletes the entire `stylex.create()`
+declaration as dead code. The result is a `ReferenceError` at runtime, in both
+dev and production builds, and it will not show up as a build error. Index
+directly at the call site instead: `variants[v ?? "default"]`. Confirmed with a
+minimal reproduction against this repo's installed plugin version; see
+`packages/web-ui-stylex/src/components/status-badge.tsx`'s inline comment for
+the full trace.
 
 ### 3.4 `hover:` `focus-visible:` `disabled:` → pseudo-class conditions
 
@@ -324,7 +337,7 @@ See §7.2.
 
 ### 3.10 `group-hover:` / `peer-disabled:` → `stylex.when.*`
 
-See §7.5. **3 sites, and only those 3 are sanctioned** (D7).
+See §7.5. **4 sites, and only those 4 are sanctioned** (D7).
 
 ### 3.11 `animate-in fade-in slide-in-from-top-2` → `stylex.keyframes`
 
@@ -515,17 +528,15 @@ all in `packages/web-ui/src/components/`: `button.tsx:8`, `badge.tsx:7`,
 `alert.tsx:6`, `status-badge.tsx:21`. `class-variance-authority` does two
 things — pick a set of classes by key, and merge them with the caller's. StyleX
 already does the merge in `stylex.props`, so only the _pick_ needs replacing.
-That is `packages/web-ui-stylex/src/lib/variants.ts`, in full:
 
-```ts
-export function variant<M extends Record<string, unknown>>(
-  map: M,
-  key: keyof M | undefined,
-  fallback: keyof M,
-): M[keyof M] {
-  return map[key ?? fallback];
-}
-```
+There is **no shared helper file** for that pick — no `lib/variants.ts`. An
+earlier version of this phase had one (a `variant(map, key, fallback)`
+function); it was retired because `@stylexjs/babel-plugin` dead-code-eliminates
+a `stylex.create()` binding whose only access is hidden inside a function call,
+which made every variant map compile away and crash at runtime. See §3.3 for
+the full story and the fix: index the map directly at the call site,
+`map[key ?? "default"]`. The worked example in §6.1 below already does this
+correctly — do not recreate a `variants.ts` helper.
 
 ### 6.1 Worked example: `button.tsx`
 
@@ -566,8 +577,6 @@ import * as stylex from "@stylexjs/stylex";
 import type { StyleXStyles } from "@stylexjs/stylex";
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
-
-import { variant } from "../lib/variants";
 
 const styles = stylex.create({
   base: {
@@ -660,10 +669,10 @@ function Button({ style, variant: v, size: s, invalid, isExpanded, ...props }: B
       aria-expanded={isExpanded}
       {...stylex.props(
         styles.base,
-        variant(variants, v, "default"),
-        variant(sizes, s, "default"),
+        variants[v ?? "default"],
+        sizes[s ?? "default"],
         invalid && styles.invalid,
-        isExpanded && variant(expanded, v, "default"),
+        isExpanded && expanded[v ?? "default"],
         style,
       )}
       {...props}
@@ -680,8 +689,9 @@ Points that generalise to the other three `cva` sites:
   none of the 4 definitions here need one.
 - **`keyof typeof variants` is the prop type.** Adding a variant to the object
   adds it to the type. No `VariantProps<typeof …>` import, no `cva` dependency.
-- **`variant(map, key, fallback)` replaces `defaultVariants`.** The fallback is
-  passed at the call, not declared in the map.
+- **`map[key ?? "default"]` replaces `defaultVariants`.** The fallback is
+  written at the call, not declared in the map — indexed directly, never
+  through a helper function (see §3.3 for why).
 - **Sizes set numbers, not classes.** `h-9` → `height: 36` straight off §2.1.
   `size-9` → both `width` and `height`.
 - **`aria-expanded:` became an `isExpanded` prop.** See §7.4. It is named
@@ -910,23 +920,42 @@ When Base UI owns the attribute (`aria-expanded` on a trigger), take the boolean
 from Base UI's state via the render prop, exactly as in §7.1, and keep letting
 Base UI write the attribute.
 
-### 7.5 `group-hover:` / `peer-disabled:` → the only sanctioned `stylex.when.*` (3)
+### 7.5 `group-hover:` / `peer-disabled:` / `group-data-[disabled]:` → the sanctioned `stylex.when.*` sites (4)
 
 **D7: `stylex.when.*` is allowed only where the state genuinely lives on another
-element. There are 3 such sites today, in 3 files. Anything else is a JS
+element. There are 4 such sites today, in 3 files. Anything else is a JS
 conditional or a style on the child.**
 
 The three files, verified by grep against `apps/web/src` + `packages/web-ui/src`:
 
-| File                                                              | Line | Construct                                                      |
-| ----------------------------------------------------------------- | ---: | -------------------------------------------------------------- |
-| `apps/web/src/components/hiring-process/process-board-card.tsx`   |   84 | `group-hover:opacity-100`, `group-focus-within:opacity-100`    |
-| `apps/web/src/components/hiring-process/hiring-process-table.tsx` |  191 | `group-hover/row:opacity-100`                                  |
-| `packages/web-ui/src/components/label.tsx`                        |   12 | `peer-disabled:opacity-50`, `peer-disabled:cursor-not-allowed` |
+| File                                                              | Line | Construct                                                                |
+| ----------------------------------------------------------------- | ---: | ------------------------------------------------------------------------ |
+| `apps/web/src/components/hiring-process/process-board-card.tsx`   |   84 | `group-hover:opacity-100`, `group-focus-within:opacity-100`              |
+| `apps/web/src/components/hiring-process/hiring-process-table.tsx` |  191 | `group-hover/row:opacity-100`                                            |
+| `packages/web-ui/src/components/label.tsx`                        |   11 | `group-data-[disabled=true]:opacity-50` (ancestor)                       |
+| `packages/web-ui/src/components/label.tsx`                        |   12 | `peer-disabled:opacity-50`, `peer-disabled:cursor-not-allowed` (sibling) |
 
-All three are the same UI idea: a control is hidden until you reach for the row
-or card that owns it. The hover is genuinely on the ancestor, and no React state
-exists for it. This is what `when.*` is for.
+All four are the same UI idea: a control's visual state is driven by another
+element — a row or card being hovered, or an ancestor container / a preceding
+sibling input being disabled — and no single prop can cleanly represent that
+from the styled element's own point of view. The hover or disabled state is
+genuinely on the other element, and no React state exists for it here. This is
+what `when.*` is for.
+
+`label.tsx`'s two constructs both qualify for the same reason
+`hasAction`/`variant` props do **not** apply to them: those Phase 3B props work
+because the compound component itself owns and passes down the relevant state.
+Here, the thing that is disabled is "some ancestor, or some preceding sibling,
+of unknown identity to `Label`" — there is no ancestor/sibling reference to turn
+into a prop, so `when.ancestor`/`when.siblingBefore` are the only way to express
+it. (An earlier draft of this document called the `group-data-[disabled=true]:`
+construct a fourth, unsanctioned case and suggested converting it to a
+`disabled` prop instead — that was wrong: nothing at `Label`'s call site can
+supply "is my ancestor container disabled" as a prop without the caller
+duplicating logic that already lives on the DOM. Both of `Label`'s `when.*`
+uses are sanctioned, per Task 1's proof at
+`packages/web-ui-stylex/src/components/label.tsx` and
+`label.stylex.ts`'s marker-collision writeup.)
 
 **Before** — `apps/web/src/components/hiring-process/process-board-card.tsx:84`:
 
@@ -936,9 +965,22 @@ exists for it. This is what `when.*` is for.
 
 **After:**
 
+`process-board-card.stylex.ts` (a marker created once, in its own
+`*.stylex.ts` file — same pattern as `label.stylex.ts`, see below):
+
+```ts
+import * as stylex from "@stylexjs/stylex";
+
+export const revealMarker = stylex.defineMarker();
+```
+
+`process-board-card.tsx`:
+
 ```tsx
+import { revealMarker } from "./process-board-card.stylex";
+
 const card = stylex.create({
-  root: { marker: stylex.defaultMarker() },
+  root: { marker: revealMarker },
 });
 
 const actions = stylex.create({
@@ -951,29 +993,52 @@ const actions = stylex.create({
     transitionDuration: "150ms",
     opacity: {
       default: 0,
-      [stylex.when.ancestor(":hover")]: 1,
-      [stylex.when.ancestor(":focus-within")]: 1,
+      [stylex.when.ancestor(":hover", revealMarker)]: 1,
+      [stylex.when.ancestor(":focus-within", revealMarker)]: 1,
     },
   },
 });
 ```
 
-The ancestor must carry the marker (`stylex.defaultMarker()` on the card root)
-for `when.ancestor` to bind — that is the replacement for Tailwind's `group`
-class. `hiring-process-table.tsx` uses a **named** group (`group/row`); use
-`stylex.defineMarker()` and pass the named marker to both the row and the
-actions cell, so a nested group cannot capture it.
+The ancestor must carry the marker (`revealMarker` on the card root) for
+`when.ancestor` to bind — that is the replacement for Tailwind's `group`
+class. Use `stylex.defineMarker()`, not `stylex.defaultMarker()`: Task 1
+(`Label`) found that `defaultMarker()` compiles to a single, fixed,
+app-wide-shared class name (`x-default-marker`), which is a collision risk
+the moment a second `when.ancestor`/`when.siblingBefore` consumer exists
+anywhere in the app — exactly the situation once this component and
+`hiring-process-table.tsx` both use `when.*`. `defineMarker()` avoids that:
+it is tied to a fresh, module-scoped `Symbol()`, so two components' markers
+can never collide even if both happen to mark the same DOM element. See
+`label.stylex.ts`'s comment for the full trace of that finding.
 
-`label.tsx`'s `peer-disabled:` is the sibling form:
+The `@stylexjs/babel-plugin` requires `defineMarker()`'s return value bound
+to a named export in a file whose name matches the configured theme-file
+suffix (`.stylex` by default) — hence the marker lives in its own
+`process-board-card.stylex.ts` rather than being inlined in the component
+file, exactly like `label.stylex.ts`.
+
+`hiring-process-table.tsx` uses a **named** group (`group/row`); give it its
+own marker the same way, and pass it to both the row and the actions cell,
+so a nested group cannot capture it.
+
+`label.tsx`'s `peer-disabled:` is the sibling form, and `line 11`'s
+`group-data-[disabled=true]:opacity-50` is the ancestor form of the same
+sanctioned idea — both use their own marker (`disabledMarker`, defined once in
+`label.stylex.ts` via `stylex.defineMarker()`, per the naming/collision
+reasoning above):
 
 ```tsx
-opacity: { default: 1, [stylex.when.siblingBefore(":disabled")]: 0.5 },
-cursor: { default: null, [stylex.when.siblingBefore(":disabled")]: "not-allowed" },
+opacity: {
+  default: 1,
+  [stylex.when.ancestor('[data-disabled="true"]', disabledMarker)]: 0.5,
+  [stylex.when.siblingBefore(":disabled", disabledMarker)]: 0.5,
+},
+cursor: {
+  default: null,
+  [stylex.when.siblingBefore(":disabled", disabledMarker)]: "not-allowed",
+},
 ```
-
-`label.tsx:12` also carries `group-data-[disabled=true]:opacity-50` — that is a
-**fourth** construct and it is _not_ sanctioned by D7, because the disabled
-state is a prop the form field already has. Pass it: `<Label disabled>`.
 
 `stylex.when.{ancestor,descendant,anySibling,siblingBefore,siblingAfter}` and
 `defaultMarker`/`defineMarker` are confirmed present in `@stylexjs/stylex@0.19.0`

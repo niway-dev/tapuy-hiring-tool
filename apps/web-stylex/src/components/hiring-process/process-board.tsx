@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StatusBadge } from "@interviews-tool/web-ui";
+import { StatusBadge } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import type { HiringProcessStatus } from "@interviews-tool/domain/constants";
 import type { BoardColumn as BoardColumnData } from "@interviews-tool/application/hiring";
