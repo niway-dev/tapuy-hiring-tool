@@ -10,7 +10,7 @@ listed here.
 | Component        | Hard selectors | Owner | PR  | Status                                                      |
 | ---------------- | -------------: | ----- | --- | ----------------------------------------------------------- |
 | label            |              2 |       |     | done                                                        |
-| skeleton         |              0 |       |     | todo                                                        |
+| skeleton         |              0 |       |     | done                                                        |
 | badge            |              2 |       |     | todo                                                        |
 | status-badge     |              0 |       |     | todo                                                        |
 | input            |              0 |       |     | todo                                                        |
