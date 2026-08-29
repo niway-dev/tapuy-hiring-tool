@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import {
   Button,
   Input,
-  Label,
   MarkdownContent,
   Select,
   SelectContent,
@@ -11,6 +10,7 @@ import {
   SelectValue,
   cn,
 } from "@interviews-tool/web-ui";
+import { Label } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { INTERACTION_TYPE_VALUES, type InteractionType } from "@interviews-tool/domain/constants";
 import { useCreateInteraction, type CreateInteractionInput } from "@/hooks/use-interactions";

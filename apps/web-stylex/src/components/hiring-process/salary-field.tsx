@@ -1,11 +1,11 @@
 import {
-  Label,
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@interviews-tool/web-ui";
+import { Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import {
   CURRENCY_INFO,

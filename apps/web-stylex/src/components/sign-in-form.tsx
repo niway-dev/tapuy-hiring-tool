@@ -3,7 +3,8 @@ import { useForm } from "@tanstack/react-form";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import z from "zod";
-import { Button, Input, Label } from "@interviews-tool/web-ui";
+import { Button, Input } from "@interviews-tool/web-ui";
+import { Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import { authClient } from "@/lib/auth/auth-client";
 

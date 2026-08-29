@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
 import { ChevronDown } from "lucide-react";
 
-import { Button, Input, Label, cn } from "@interviews-tool/web-ui";
+import { Button, Input, cn } from "@interviews-tool/web-ui";
+import { Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import {
   CURRENCIES,

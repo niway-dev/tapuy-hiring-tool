@@ -1,6 +1,5 @@
 import {
   Input,
-  Label,
   Select,
   SelectContent,
   SelectItem,
@@ -8,6 +7,7 @@ import {
   SelectValue,
   Textarea,
 } from "@interviews-tool/web-ui";
+import { Label } from "@interviews-tool/web-ui-stylex";
 import { useTranslations } from "@interviews-tool/i18n";
 import type { HiringProcessFormApi } from "./hiring-process-form";
 
