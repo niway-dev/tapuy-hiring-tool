@@ -97,7 +97,7 @@ export function Checkbox({ style, ...props }: CheckboxProps) {
         data-slot="checkbox-indicator"
         {...stylex.props(styles.indicator)}
       >
-        <CheckIcon {...stylex.props(icon.xs)} />
+        <CheckIcon {...stylex.props(icon.sm)} />
       </CheckboxPrimitive.Indicator>
     </CheckboxPrimitive.Root>
   );
