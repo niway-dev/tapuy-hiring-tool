@@ -81,7 +81,7 @@ const slideFrom = { top: motion.slideFromBottom, right: motion.slideFromLeft,
 
 Do **not** reach for `stylex.when.*`. Spec D7 restricts it to the three sites where state genuinely lives on another element and no prop can carry it; `side` is available in JS, so this is not one of them.
 
-A caveat worth knowing before you rely on it: **`stylex.when.*` has never been executed in this repo.** Its presence in 0.19.0 was confirmed only by reading the type definitions; the Phase 0 spike never exercised it. If a task in this plan genuinely needs it, the first use must be verified in a browser and the result recorded.
+A note on `stylex.when.*`, no longer a caveat: **it has been executed and confirmed working**, in Phase 3A's `Label` (commits `ab60f90`, later `d98d8ef`) — `when.ancestor`/`when.siblingBefore` compiled to real, working selectors in production CSS. That task also found that `stylex.defineMarker()` (not `defaultMarker()`) must be used for any marker beyond the very first one in the app, because `defaultMarker()` compiles to a single literal class name shared by the whole app, and `defineMarker()` requires its return value bound to a named export in its own `*.stylex.ts` file (the same restriction as `defineVars`/`defineConsts`). If this plan's Ruling 2 turns out to be wrong for some case and `when.*` is genuinely needed here, follow that precedent rather than `defaultMarker()`.
 
 ---
 
