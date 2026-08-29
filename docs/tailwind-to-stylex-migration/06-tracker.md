@@ -15,7 +15,7 @@ listed here.
 | status-badge     |              0 |       |     | todo                                                        |
 | input            |              0 |       |     | done                                                        |
 | textarea         |              0 |       |     | done                                                        |
-| checkbox         |              0 |       |     | todo                                                        |
+| checkbox         |              0 |       |     | done                                                        |
 | card             |              7 |       |     | todo                                                        |
 | alert            |             10 |       |     | todo                                                        |
 | table            |              4 |       |     | todo                                                        |

@@ -1,7 +1,7 @@
 import * as stylex from "@stylexjs/stylex";
 import { useState } from "react";
-import { Button, Checkbox, cn } from "@interviews-tool/web-ui";
-import { Input } from "@interviews-tool/web-ui-stylex";
+import { Button, cn } from "@interviews-tool/web-ui";
+import { Checkbox, Input } from "@interviews-tool/web-ui-stylex";
 import { useFormatter, useTranslations } from "@interviews-tool/i18n";
 import { useQuestions, type QuestionWithState } from "@/lib/questions-store";
 
@@ -11,6 +11,7 @@ import { useQuestions, type QuestionWithState } from "@/lib/questions-store";
 
 const styles = stylex.create({
   flex1: { flex: "1 1 0%" },
+  checkbox: { marginTop: 2 },
 });
 
 interface QuestionsPanelProps {
@@ -81,7 +82,7 @@ export function QuestionsPanel({
                 toggle(q.id);
                 onTick?.(q.text);
               }}
-              className="mt-0.5"
+              style={styles.checkbox}
             />
             <span className="min-w-0">
               <span className="block text-sm leading-snug text-text">{q.text}</span>
@@ -104,7 +105,7 @@ export function QuestionsPanel({
             <div className="mt-3 space-y-3">
               {asked.map((q) => (
                 <label key={q.id} className="flex cursor-pointer items-start gap-2.5">
-                  <Checkbox checked onCheckedChange={() => toggle(q.id)} className="mt-0.5" />
+                  <Checkbox checked onCheckedChange={() => toggle(q.id)} style={styles.checkbox} />
                   <span className="text-sm leading-snug text-text-muted line-through">
                     {q.text}
                   </span>
