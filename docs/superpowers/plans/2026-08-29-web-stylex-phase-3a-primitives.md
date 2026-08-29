@@ -182,9 +182,16 @@ import * as React from "react";
 import { colors } from "@interviews-tool/design-tokens/tokens.stylex";
 
 /* group-data-[disabled=true]:* in Tailwind became when.ancestor here, and
-   peer-disabled:* became when.siblingBefore. These are two of the three
+   peer-disabled:* became when.siblingBefore. These are two of the four
    sanctioned stylex.when.* uses in this migration (spec D7): the state lives
-   on another element, so it genuinely cannot be a JS conditional. */
+   on another element, so it genuinely cannot be a JS conditional.
+
+   As executed, both when.* calls below also take a second argument — a
+   stylex.defineMarker() result imported from a sibling label.stylex.ts file
+   — because stylex.defaultMarker() (shown here) compiles to one literal
+   class shared app-wide, a collision risk once a second when.* consumer
+   exists elsewhere in the app. See label.stylex.ts and §7.5 for the real
+   shape; this snippet predates that fix. */
 const styles = stylex.create({
   root: {
     display: "flex",
