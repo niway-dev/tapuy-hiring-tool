@@ -4,7 +4,7 @@ module.exports = {
   plugins: {
     "@stylexjs/postcss-plugin": {
       include: ["src/**/*.{ts,tsx}", "../../packages/*/src/**/*.{ts,tsx}"],
-      exclude: ["**/node_modules/**", "**/dist/**"],
+      exclude: ["**/node_modules/**", "**/dist/**", "**/*.test.{ts,tsx}"],
       babelConfig: {
         babelrc: false,
         presets: [["@babel/preset-typescript"]],
