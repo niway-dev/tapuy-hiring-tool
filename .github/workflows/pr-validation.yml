@@ -34,6 +34,12 @@ jobs:
       - name: Build packages
         run: bun run build --filter='@interviews-tool/*'
 
+      - name: Verify generated StyleX tokens are up to date
+        working-directory: packages/design-tokens
+        run: |
+          bun run generate:stylex
+          git diff --exit-code -- src/tokens.stylex.ts
+
       - name: Type check
         run: bun run check-types
 
